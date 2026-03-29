@@ -1,0 +1,75 @@
+version: "3.9"
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  NexCP — Backend API + Static Frontends
+#  Expects an external nginx-proxy + acme-companion on the `sumit_proxy` network.
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend (Node.js API) ───────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: nexcp-backend
+    expose:
+      - "3000"
+    env_file: ./backend/.env
+    environment:
+      VIRTUAL_HOST: ${PANEL_DOMAIN},${LINK_DOMAIN}
+      VIRTUAL_PORT: 3000
+      LETSENCRYPT_HOST: ${PANEL_DOMAIN},${LINK_DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
+      PORT: 3000
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/tokens:/app/tokens
+    restart: unless-stopped
+    networks:
+      - proxy
+      - internal
+
+  # ── Panel Frontend (static) ─────────────────────────────────────────────────
+  panel:
+    image: nginx:alpine
+    container_name: nexcp-panel
+    expose:
+      - "80"
+    environment:
+      VIRTUAL_HOST: ${PANEL_DOMAIN}
+      VIRTUAL_PORT: 80
+      LETSENCRYPT_HOST: ${PANEL_DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
+    volumes:
+      - ./frontend-panel:/usr/share/nginx/html:ro
+      - ./nginx/panel.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    networks:
+      - proxy
+      - internal
+
+  # ── Link Frontend (static) ──────────────────────────────────────────────────
+  link:
+    image: nginx:alpine
+    container_name: nexcp-link
+    expose:
+      - "80"
+    environment:
+      VIRTUAL_HOST: ${LINK_DOMAIN}
+      VIRTUAL_PORT: 80
+      LETSENCRYPT_HOST: ${LINK_DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
+    volumes:
+      - ./frontend-link:/usr/share/nginx/html:ro
+      - ./nginx/link.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    networks:
+      - proxy
+      - internal
+
+networks:
+  proxy:
+    name: sumit_proxy
+    external: true
+  internal:
+    driver: bridge
+    internal: true
