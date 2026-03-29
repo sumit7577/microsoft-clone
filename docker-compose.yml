@@ -1,7 +1,7 @@
 version: "3.9"
 
 # ──────────────────────────────────────────────────────────────────────────────
-#  NexCP — Backend API + Static Frontends
+#  NexCP — Backend API + React Frontend
 #  Expects an external nginx-proxy + acme-companion on the `sumit_proxy` network.
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -15,9 +15,9 @@ services:
       - "3000"
     env_file: ./backend/.env
     environment:
-      VIRTUAL_HOST: ${PANEL_DOMAIN},${LINK_DOMAIN}
+      VIRTUAL_HOST: ${API_DOMAIN}
       VIRTUAL_PORT: 3000
-      LETSENCRYPT_HOST: ${PANEL_DOMAIN},${LINK_DOMAIN}
+      LETSENCRYPT_HOST: ${API_DOMAIN}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
       PORT: 3000
     volumes:
@@ -28,10 +28,12 @@ services:
       - proxy
       - internal
 
-  # ── Panel Frontend (static) ─────────────────────────────────────────────────
-  panel:
-    image: nginx:alpine
-    container_name: nexcp-panel
+  # ── React Frontend ──────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nexcp-frontend
     expose:
       - "80"
     environment:
@@ -39,32 +41,9 @@ services:
       VIRTUAL_PORT: 80
       LETSENCRYPT_HOST: ${PANEL_DOMAIN}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
-    volumes:
-      - ./frontend-panel:/usr/share/nginx/html:ro
-      - ./nginx/panel.conf:/etc/nginx/conf.d/default.conf:ro
     restart: unless-stopped
     networks:
       - proxy
-      - internal
-
-  # ── Link Frontend (static) ──────────────────────────────────────────────────
-  link:
-    image: nginx:alpine
-    container_name: nexcp-link
-    expose:
-      - "80"
-    environment:
-      VIRTUAL_HOST: ${LINK_DOMAIN}
-      VIRTUAL_PORT: 80
-      LETSENCRYPT_HOST: ${LINK_DOMAIN}
-      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
-    volumes:
-      - ./frontend-link:/usr/share/nginx/html:ro
-      - ./nginx/link.conf:/etc/nginx/conf.d/default.conf:ro
-    restart: unless-stopped
-    networks:
-      - proxy
-      - internal
 
 networks:
   proxy:
