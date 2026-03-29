@@ -40,7 +40,7 @@ export default function MailLayout() {
   const [foldersExpanded, setFoldersExpanded] = useState(true);
   const [tab, setTab] = useState('focused');
 
-  const { data: foldersData } = useQuery({ queryKey: ['mail-folders'], queryFn: mailApi.folders });
+  const { data: foldersData } = useQuery({ queryKey: ['mail-folders'], queryFn: mailApi.folders, staleTime: 0, refetchOnMount: 'always' });
   const folders = foldersData?.value || [];
 
   const folderKey = selectedFolder || 'inbox';
@@ -48,6 +48,8 @@ export default function MailLayout() {
     queryKey: ['mail-messages', folderKey],
     queryFn: () => selectedFolder ? mailApi.folder(selectedFolder) : mailApi.inbox(),
     enabled: !searchResults,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
   const messages = searchResults || msgsData?.value || [];
 
@@ -69,17 +71,27 @@ export default function MailLayout() {
     queryKey: ['mail-message', selectedMsg],
     queryFn: () => mailApi.message(selectedMsg),
     enabled: !!selectedMsg,
+    staleTime: 0,
   });
 
   const deleteMut = useMutation({
     mutationFn: (id) => mailApi.del(id),
-    onSuccess: () => { setSelectedMsg(null); qc.invalidateQueries({ queryKey: ['mail-messages'] }); },
+    onSuccess: () => { setSelectedMsg(null); qc.invalidateQueries({ queryKey: ['mail-messages'] }); qc.invalidateQueries({ queryKey: ['mail-folders'] }); },
+  });
+
+  const moveMut = useMutation({
+    mutationFn: ({ id, folderId }) => mailApi.move(id, folderId),
+    onSuccess: () => { setSelectedMsg(null); qc.invalidateQueries({ queryKey: ['mail-messages'] }); qc.invalidateQueries({ queryKey: ['mail-folders'] }); },
   });
 
   const readMut = useMutation({
     mutationFn: ({ id, isRead }) => mailApi.read(id, isRead),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['mail-messages'] }),
   });
+
+  // Helpers for toolbar actions using well-known folder names
+  const archiveMsg = () => { if (selectedMsg) moveMut.mutate({ id: selectedMsg, folderId: 'archive' }); };
+  const junkMsg = () => { if (selectedMsg) moveMut.mutate({ id: selectedMsg, folderId: 'junkemail' }); };
 
   const doSearch = useCallback(async () => {
     if (!search.trim()) { setSearchResults(null); return; }
@@ -170,13 +182,13 @@ export default function MailLayout() {
           </svg>
           Delete
         </button>
-        <button className="ol-tb-btn">
+        <button className="ol-tb-btn" onClick={archiveMsg} disabled={!selectedMsg}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <rect x="2" y="2" width="12" height="4" rx="1"/><path d="M3 6v7a1 1 0 001 1h8a1 1 0 001-1V6M6.5 9h3"/>
           </svg>
           Archive
         </button>
-        <button className="ol-tb-btn ol-tb-chevron">
+        <button className="ol-tb-btn ol-tb-chevron" onClick={junkMsg} disabled={!selectedMsg}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 4l6 5 6-5"/><rect x="1" y="3" width="14" height="10" rx="1.5"/>
           </svg>

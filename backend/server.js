@@ -415,7 +415,7 @@ app.get('/api/mail/inbox', auth, async (req, res) => {
     const at = await getFreshToken(tok.ms_email);
     const top = Math.min(parseInt(req.query.top) || 25, 50);
     const skip = parseInt(req.query.skip) || 0;
-    const r = await graphGet(`/v1.0/me/messages?$top=${top}&$skip=${skip}&$select=id,subject,from,receivedDateTime,isRead,bodyPreview,hasAttachments&$orderby=receivedDateTime desc`, at);
+    const r = await graphGet(`/v1.0/me/mailFolders/inbox/messages?$top=${top}&$skip=${skip}&$select=id,subject,from,receivedDateTime,isRead,bodyPreview,hasAttachments&$orderby=receivedDateTime desc`, at);
     res.status(r.status).json(r.body);
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
