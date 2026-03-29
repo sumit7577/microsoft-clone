@@ -27,6 +27,8 @@ const lim = rateLimit({ windowMs: 15 * 60 * 1000, max: 600 });
 const alim = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/', lim);
 
+app.get('/', (_req, res) => res.json({ status: 'ok', service: 'nexcp-api' }));
+
 // ── Auth middleware ───────────────────────────────────────────────────────────
 function auth(req, res, next) {
   const t = (req.headers.authorization || '').replace('Bearer ', '').trim();
