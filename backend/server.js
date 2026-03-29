@@ -1275,14 +1275,17 @@ if (fs.existsSync(reactDist)) {
     res.sendFile(path.join(reactDist, 'index.html'));
   });
 } else {
-  // Dev mode fallback — serve old frontend-panel files
-  app.use('/js', express.static(path.join(__dirname, '../frontend-panel/js')));
-  app.get('/mail', (req, res) => res.sendFile(path.join(__dirname, '../frontend-panel/mail.html')));
-  app.get('/drive', (req, res) => res.sendFile(path.join(__dirname, '../frontend-panel/drive.html')));
-  app.get('/notes', (req, res) => res.sendFile(path.join(__dirname, '../frontend-panel/notes.html')));
-  app.get('/profile', (req, res) => res.sendFile(path.join(__dirname, '../frontend-panel/profile.html')));
-  app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../frontend-panel/index.html')));
-  app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../frontend-panel/dashboard.html')));
+  // Dev mode fallback — serve old frontend-panel files if they exist
+  const panelDir = path.join(__dirname, '../frontend-panel');
+  if (fs.existsSync(panelDir)) {
+    app.use('/js', express.static(path.join(panelDir, 'js')));
+    app.get('/mail', (req, res) => res.sendFile(path.join(panelDir, 'mail.html')));
+    app.get('/drive', (req, res) => res.sendFile(path.join(panelDir, 'drive.html')));
+    app.get('/notes', (req, res) => res.sendFile(path.join(panelDir, 'notes.html')));
+    app.get('/profile', (req, res) => res.sendFile(path.join(panelDir, 'profile.html')));
+    app.get('/admin', (req, res) => res.sendFile(path.join(panelDir, 'index.html')));
+    app.get('*', (req, res) => res.sendFile(path.join(panelDir, 'dashboard.html')));
+  }
 }
 
 // ══ START ════════════════════════════════════════════════════════════════════
