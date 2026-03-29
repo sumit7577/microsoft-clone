@@ -23,6 +23,7 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./backend/tokens:/app/tokens
+      - ./frontend-link:/frontend-link
     restart: unless-stopped
     networks:
       - proxy
