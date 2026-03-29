@@ -1,0 +1,773 @@
+/* ── Classic Outlook Web UI ──────────────────────────────────── */
+.outlook-page {
+  --accent: #8B1A10;
+  --accent-hover: #6D1510;
+  --blue: #0078d4;
+  --blue-hover: #106ebe;
+  --blue-light: #deecf9;
+  --text: #323130;
+  --text2: #605e5c;
+  --text3: #a19f9d;
+  --border: #edebe9;
+  --border2: #c8c6c4;
+  --bg2: #f3f2f1;
+  --bg3: #faf9f8;
+  --red: #d13438;
+  --green: #107c10;
+  --r: 4px;
+
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #fff;
+  color: var(--text);
+}
+
+/* ── Topbar ──────────────────────────────────────────────────── */
+.outlook-topbar {
+  height: 48px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.outlook-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.ol-waffle {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  color: rgba(255,255,255,.85);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ol-waffle:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+.outlook-brand {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.outlook-search {
+  flex: 1;
+  max-width: 448px;
+  position: relative;
+  margin: 0 auto;
+}
+
+.outlook-search input {
+  width: 100%;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: var(--r);
+  padding: 7px 12px 7px 34px;
+  font-size: 13px;
+  color: #fff;
+  outline: none;
+  font-family: inherit;
+}
+.outlook-search input::placeholder { color: rgba(255,255,255,0.6); }
+.outlook-search input:focus { background: #fff; color: var(--text); border-color: var(--blue); }
+.outlook-search input:focus::placeholder { color: var(--text3); }
+
+.outlook-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: rgba(255,255,255,.6);
+  pointer-events: none;
+}
+.outlook-search:has(input:focus) svg { color: var(--text3); }
+
+.outlook-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ol-top-icon {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: rgba(255,255,255,.8);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ol-top-icon:hover { background: rgba(255,255,255,.12); color: #fff; }
+.ol-top-icon svg { width: 16px; height: 16px; }
+
+.ol-nexcp-link {
+  font-size: 11px;
+  color: rgba(255,255,255,.65);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: var(--r);
+}
+.ol-nexcp-link:hover { color: #fff; background: rgba(255,255,255,.1); }
+
+.ol-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.ol-user-avatar:hover { background: rgba(255,255,255,.3); }
+
+/* ── Toolbar ─────────────────────────────────────────────────── */
+.outlook-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.ol-tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--r);
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text);
+  transition: all 0.12s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.ol-tb-btn:hover { background: var(--bg2); border-color: var(--border); }
+.ol-tb-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.ol-tb-btn-new {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+  font-weight: 600;
+  padding: 6px 14px;
+}
+.ol-tb-btn-new:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
+
+.ol-tb-chevron { padding-right: 6px; }
+.ol-tb-chevron .chevron { width: 8px; height: 8px; margin-left: 2px; }
+
+.ol-tb-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border2);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.ol-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.ol-toggle input { display: none; }
+.ol-toggle-slider {
+  width: 36px;
+  height: 18px;
+  background: #c8c6c4;
+  border-radius: 9px;
+  position: relative;
+  transition: background .2s;
+}
+.ol-toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform .2s;
+}
+.ol-toggle input:checked + .ol-toggle-slider { background: var(--blue); }
+.ol-toggle input:checked + .ol-toggle-slider::after { transform: translateX(18px); }
+
+/* ── 3-column layout ─────────────────────────────────────────── */
+.mail-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Folder panel ────────────────────────────────────────────── */
+.folder-panel {
+  width: 210px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  overflow: hidden;
+}
+
+.folder-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.folder-section-hdr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.folder-section-hdr:hover { color: var(--blue); }
+
+.section-chevron {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  transition: transform .15s;
+  color: var(--text3);
+}
+.section-chevron.expanded { transform: rotate(90deg); }
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px 6px 28px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  border-left: 3px solid transparent;
+  transition: all 0.1s;
+}
+.folder-item:hover { background: var(--bg2); color: var(--text); }
+.folder-item.active {
+  background: var(--blue-light);
+  border-left-color: var(--blue);
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.folder-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+.folder-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-badge {
+  margin-left: auto;
+  background: var(--blue);
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.folder-add {
+  padding: 8px 16px 8px 28px;
+  font-size: 12px;
+  color: var(--blue);
+  cursor: pointer;
+}
+.folder-add:hover { text-decoration: underline; }
+
+/* Bottom app bar */
+.folder-appbar {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding: 4px 8px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.appbar-btn {
+  flex: 1;
+  height: 36px;
+  border: none;
+  background: none;
+  color: var(--text2);
+  cursor: pointer;
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.appbar-btn:hover { background: var(--bg2); color: var(--text); }
+.appbar-btn svg { width: 18px; height: 18px; }
+
+/* ── Inbox panel ─────────────────────────────────────────────── */
+.inbox-panel {
+  width: 380px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+
+.inbox-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+  gap: 0;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.inbox-tab {
+  position: relative;
+  font-size: 13px;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--text2);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 400;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+.inbox-tab:hover { color: var(--text); }
+.inbox-tab.active { color: var(--blue); font-weight: 600; }
+
+.tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: var(--blue);
+  border-radius: 1px 1px 0 0;
+  display: none;
+}
+.inbox-tab.active .tab-indicator { display: block; }
+
+.inbox-filter {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--r);
+}
+.inbox-filter:hover { background: var(--blue-light); }
+
+.inbox-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.inbox-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--text3);
+}
+
+/* Date group header */
+.date-group {
+  padding: 10px 16px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Mail items */
+.mail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.mail-item:hover { background: #f5f5f5; }
+.mail-item.active { background: var(--blue-light); }
+.mail-item.unread .mail-from { font-weight: 700; color: var(--text); }
+.mail-item.unread .mail-subject { font-weight: 600; }
+
+.mail-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.mail-content { flex: 1; min-width: 0; }
+
+.mail-from-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.mail-from {
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.mail-date {
+  font-size: 12px;
+  color: var(--text3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mail-subject {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.mail-preview {
+  font-size: 12px;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* ── Read panel ──────────────────────────────────────────────── */
+.read-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+
+.read-header {
+  padding: 20px 28px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.read-subject {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+  line-height: 1.35;
+}
+
+.read-info-bar {
+  font-size: 12px;
+  color: var(--text3);
+  background: var(--bg3);
+  padding: 6px 12px;
+  border-radius: var(--r);
+  margin-bottom: 14px;
+}
+.read-info-bar a { color: var(--blue); text-decoration: none; }
+.read-info-bar a:hover { text-decoration: underline; }
+
+.read-sender {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.read-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.read-sender-info { flex: 1; min-width: 120px; }
+.read-sender-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.read-sender-email { font-size: 12px; color: var(--text2); }
+
+.read-sender-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.ol-action-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ol-action-icon:hover { background: var(--bg2); color: var(--text); border-color: var(--border2); }
+.ol-action-icon svg { width: 14px; height: 14px; }
+
+.read-date {
+  font-size: 12px;
+  color: var(--text3);
+  white-space: nowrap;
+}
+
+.read-to {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 8px;
+}
+
+.read-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+  background: #fff;
+}
+
+.read-body-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.read-body-content a { color: var(--blue); }
+.read-body-content img { max-width: 100%; height: auto; }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.empty-state-outlook {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text2);
+  background: var(--bg3);
+}
+
+.empty-envelope { opacity: 0.7; }
+
+.empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-desc {
+  font-size: 13px;
+  color: var(--text3);
+}
+
+/* ── Compose overlay ─────────────────────────────────────────── */
+.compose-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 24px 24px;
+}
+
+.compose-win {
+  background: #fff;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  width: 500px;
+  max-width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.compose-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg2);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.compose-title { font-size: 14px; font-weight: 600; color: var(--text); }
+
+.close-x {
+  width: 28px; height: 28px;
+  border-radius: var(--r);
+  background: none; border: none;
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 18px;
+}
+.close-x:hover { background: #fde7e9; color: var(--red); }
+
+.compose-body { padding: 16px; }
+
+.compose-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+  margin-bottom: 4px;
+}
+
+.compose-field label {
+  font-size: 12px;
+  color: var(--text2);
+  width: 30px;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.compose-field input {
+  background: none; border: none;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  font-family: inherit;
+}
+
+.compose-area {
+  width: 100%;
+  background: none; border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  resize: none;
+  line-height: 1.7;
+  padding: 12px 0;
+  min-height: 180px;
+}
+
+.compose-footer {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Outlook buttons */
+.ol-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--r);
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  background: #fff;
+  color: var(--text);
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.ol-btn:hover { background: var(--bg2); }
+.ol-btn:disabled { opacity: 0.5; cursor: default; }
+
+.ol-btn-send {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 600;
+}
+.ol-btn-send:hover { background: var(--blue-hover); }
+
+/* Spinner */
+.outlook-spinner {
+  display: inline-block;
+  width: 20px; height: 20px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: olSpin 0.7s linear infinite;
+}
+
+@keyframes olSpin { to { transform: rotate(360deg); } }
+
+/* Scrollbar */
+.outlook-page ::-webkit-scrollbar { width: 6px; }
+.outlook-page ::-webkit-scrollbar-track { background: transparent; }
+.outlook-page ::-webkit-scrollbar-thumb { background: #d2d0ce; border-radius: 3px; }

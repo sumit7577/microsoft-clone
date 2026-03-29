@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>My Account</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        :root {
+            --bg: #f5f5f5;
+            --white: #fff;
+            --border: #edebe9;
+            --border2: #d2d0ce;
+            --text: #323130;
+            --text2: #605e5c;
+            --text3: #a19f9d;
+            --blue: #0078d4;
+            --blue-hover: #106ebe;
+            --red: #d13438;
+            --green: #107c10;
+            --r: 4px;
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--bg)
+        }
+
+        body {
+            display: flex;
+            flex-direction: column
+        }
+
+        /* ── Topbar ─────────────────────────── */
+        .topbar {
+            height: 48px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 12px;
+        }
+
+        .topbar-waffle {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: var(--r);
+            flex-shrink: 0;
+        }
+
+        .topbar-waffle:hover {
+            background: #f3f2f1;
+        }
+
+        .topbar-waffle svg {
+            width: 20px;
+            height: 20px;
+            color: #616161;
+        }
+
+        .topbar-hamburger {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: var(--r);
+            flex-shrink: 0;
+        }
+
+        .topbar-hamburger:hover {
+            background: #f3f2f1;
+        }
+
+        .topbar-hamburger svg {
+            width: 20px;
+            height: 20px;
+            color: #323130;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .topbar-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--r);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #616161;
+        }
+
+        .topbar-icon:hover {
+            background: #f3f2f1;
+        }
+
+        .topbar-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .topbar-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e8cccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6e3535;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* ── Layout ─────────────────────────── */
+        .main-wrap {
+            display: flex;
+            flex: 1;
+            overflow: hidden
+        }
+
+        /* ── Left sidebar ───────────────────── */
+        .sidebar {
+            width: 260px;
+            flex-shrink: 0;
+            background: var(--white);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding-top: 0;
+        }
+
+        .side-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 20px 12px;
+        }
+
+        .side-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e8cccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6e3535;
+            font-size: 13px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .side-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .side-email {
+            font-size: 11px;
+            color: var(--text2);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 170px;
+        }
+
+        .side-section {
+            border-top: 1px solid var(--border);
+        }
+
+        .side-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .side-section-header:hover {
+            background: #f3f2f1;
+        }
+
+        .side-section-header svg {
+            width: 18px;
+            height: 18px;
+            color: var(--text2);
+            flex-shrink: 0;
+        }
+
+        .side-section-header .chevron {
+            margin-left: auto;
+            width: 12px;
+            height: 12px;
+            transition: transform .15s;
+        }
+
+        .side-section-header .chevron.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .side-section-items {
+            padding-bottom: 4px;
+        }
+
+        .side-section-items.hidden {
+            display: none;
+        }
+
+        .side-item {
+            display: block;
+            padding: 7px 20px 7px 48px;
+            font-size: 13px;
+            color: var(--text2);
+            cursor: pointer;
+            text-decoration: none;
+            transition: background .1s;
+        }
+
+        .side-item:hover {
+            background: #f3f2f1;
+            color: var(--text);
+        }
+
+        .side-item.active {
+            font-weight: 600;
+            color: var(--text);
+            text-decoration: underline;
+        }
+
+        .side-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            font-size: 13px;
+            color: var(--text);
+            cursor: pointer;
+            text-decoration: none;
+            border-top: 1px solid var(--border);
+        }
+
+        .side-link:hover {
+            background: #f3f2f1;
+        }
+
+        .side-link svg {
+            width: 18px;
+            height: 18px;
+            color: var(--text2);
+            flex-shrink: 0;
+        }
+
+        /* ── Main content ───────────────────── */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 40px 40px;
+        }
+
+        .welcome-heading {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            padding: 32px 0 24px;
+        }
+
+        /* Profile card */
+        .profile-card {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 24px 0 32px;
+        }
+
+        .profile-avatar-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #e8cccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6e3535;
+            font-size: 38px;
+            font-weight: 600;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .profile-edit-icon {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 1px solid var(--border2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .profile-edit-icon svg {
+            width: 14px;
+            height: 14px;
+            color: var(--text2);
+        }
+
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .profile-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .profile-email {
+            font-size: 14px;
+            color: var(--text2);
+        }
+
+        .profile-why {
+            font-size: 13px;
+            color: var(--blue);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .profile-why:hover {
+            text-decoration: underline;
+        }
+
+        .profile-why svg {
+            width: 12px;
+            height: 12px;
+            transition: transform .15s;
+        }
+
+        /* Keep track */
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            padding: 24px 0 16px;
+        }
+
+        .keep-track {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 20px;
+            text-align: center;
+        }
+
+        .keep-track-emoji {
+            font-size: 64px;
+            margin-bottom: 12px;
+        }
+
+        .keep-track-text {
+            font-size: 14px;
+            color: var(--text2);
+        }
+
+        /* Account setup cards */
+        .setup-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding-bottom: 32px;
+        }
+
+        .setup-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            cursor: pointer;
+            transition: box-shadow .15s;
+        }
+
+        .setup-card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+        }
+
+        .setup-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 4px;
+        }
+
+        .setup-card-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .setup-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .setup-card-desc {
+            font-size: 12px;
+            color: var(--text2);
+            line-height: 1.4;
+        }
+
+        /* ── Detail views ────────────────────── */
+        .detail-section {
+            display: none;
+            padding: 24px 0;
+        }
+
+        .detail-section.active {
+            display: block;
+        }
+
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        .detail-table th {
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text2);
+            padding: 8px 12px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .detail-table td {
+            font-size: 13px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .detail-row {
+            display: flex;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-label {
+            width: 180px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text2);
+            flex-shrink: 0;
+        }
+
+        .detail-value {
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .detail-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text3);
+            font-size: 13px;
+        }
+
+        /* ── Gate ────────────────────────────── */
+        .gate {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+            background: #faf9f8;
+        }
+
+        /* ── Utils ───────────────────────────── */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border2);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            border: 1px solid var(--green);
+            border-radius: var(--r);
+            padding: 10px 18px;
+            font-size: 12.5px;
+            color: var(--green);
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+            transition: opacity .3s;
+        }
+
+        .hidden {
+            display: none !important
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: var(--r);
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid var(--border2);
+            background: #fff;
+            color: var(--text);
+            transition: all .12s;
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background: #f3f2f1;
+        }
+
+        .btn-primary {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--blue-hover);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #d2d0ce;
+            border-radius: 3px
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Topbar -->
+    <div class="topbar">
+        <!-- Waffle menu -->
+        <div class="topbar-waffle" title="Microsoft apps">
+            <svg viewBox="0 0 20 20" fill="currentColor">
+                <circle cx="4" cy="4" r="1.5" />
+                <circle cx="10" cy="4" r="1.5" />
+                <circle cx="16" cy="4" r="1.5" />
+                <circle cx="4" cy="10" r="1.5" />
+                <circle cx="10" cy="10" r="1.5" />
+                <circle cx="16" cy="10" r="1.5" />
+                <circle cx="4" cy="16" r="1.5" />
+                <circle cx="10" cy="16" r="1.5" />
+                <circle cx="16" cy="16" r="1.5" />
+            </svg>
+        </div>
+        <!-- Hamburger -->
+        <div class="topbar-hamburger" id="hamburger-btn" onclick="Profile.actions.toggleSidebar()">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <path d="M3 5h14M3 10h14M3 15h14" />
+            </svg>
+        </div>
+
+        <div class="topbar-right">
+            <!-- People icon -->
+            <div class="topbar-icon" title="My Staff">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3">
+                    <circle cx="7" cy="6" r="3" />
+                    <circle cx="14" cy="7" r="2.5" />
+                    <path d="M1 17c0-3 3-5 6-5s6 2 6 5" />
+                    <path d="M13 12c2.5 0 5 1.5 5 4" />
+                </svg>
+            </div>
+            <!-- Help icon -->
+            <div class="topbar-icon" title="Help">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3">
+                    <circle cx="10" cy="10" r="8" />
+                    <path d="M7.5 7.5a2.5 2.5 0 0 1 4.5 1.5c0 1.5-2.5 2-2.5 2" stroke-linecap="round" />
+                    <circle cx="10" cy="14.5" r=".5" fill="currentColor" />
+                </svg>
+            </div>
+            <!-- User avatar -->
+            <div class="topbar-avatar" id="topbar-avatar">?</div>
+        </div>
+    </div>
+
+    <!-- Login gate -->
+    <div id="login-gate" class="gate hidden">
+        <div style="font-size:16px;font-weight:600">Sign in to view your account</div>
+        <div style="display:flex;gap:12px">
+            <input type="text" id="gate-user" placeholder="admin"
+                style="border:1px solid var(--border2);border-radius:var(--r);padding:8px 12px;font-size:13px;outline:none;width:180px;font-family:inherit">
+            <input type="password" id="gate-pass" placeholder="Password"
+                style="border:1px solid var(--border2);border-radius:var(--r);padding:8px 12px;font-size:13px;outline:none;width:180px;font-family:inherit"
+                onkeydown="if(event.key==='Enter')Profile.init.gateLogin()">
+            <button class="btn btn-primary" onclick="Profile.init.gateLogin()">Sign in</button>
+        </div>
+        <div id="gate-err" style="font-size:12px;color:var(--red);display:none"></div>
+    </div>
+
+    <!-- No token -->
+    <div id="no-token" class="gate hidden">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="8" r="4" fill="#d2d0ce" />
+            <path d="M4 20c0-4 4-6 8-6s8 2 8 6" fill="#d2d0ce" />
+        </svg>
+        <div style="font-size:16px;font-weight:600">No Microsoft account linked</div>
+        <div style="font-size:13px;color:var(--text2)">Link your account to view profile information.</div>
+        <a href="/link" class="btn btn-primary" style="margin-top:8px;text-decoration:none">Link my account</a>
+    </div>
+
+    <!-- Main layout -->
+    <div class="main-wrap" id="profile-app" style="display:none">
+
+        <!-- Left sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="side-profile">
+                <div class="side-avatar" id="side-avatar">?</div>
+                <div>
+                    <div class="side-name" id="side-name">Loading...</div>
+                    <div class="side-email" id="side-email"></div>
+                </div>
+            </div>
+
+            <!-- My Account section -->
+            <div class="side-section">
+                <div class="side-section-header" onclick="Profile.actions.toggleSection('account')">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3">
+                        <circle cx="10" cy="7" r="3.5" />
+                        <path d="M3 18c0-3.5 3-5.5 7-5.5s7 2 7 5.5" />
+                    </svg>
+                    My Account
+                    <svg class="chevron" id="chev-account" viewBox="0 0 12 12" fill="none" stroke="currentColor"
+                        stroke-width="1.5" stroke-linecap="round">
+                        <path d="M3 5l3 3 3-3" />
+                    </svg>
+                </div>
+                <div class="side-section-items" id="items-account">
+                    <div class="side-item active" data-view="overview" onclick="Profile.nav.show('overview')">Overview
+                    </div>
+                    <div class="side-item" data-view="security" onclick="Profile.nav.show('security')">Security Info
+                    </div>
+                    <div class="side-item" data-view="devices" onclick="Profile.nav.show('devices')">Devices</div>
+                    <div class="side-item" data-view="password" onclick="Profile.nav.show('password')">Change Password
+                    </div>
+                    <div class="side-item" data-view="organizations" onclick="Profile.nav.show('organizations')">
+                        Organizations</div>
+                    <div class="side-item" data-view="privacy" onclick="Profile.nav.show('privacy')">Settings &
+                        Privacy</div>
+                    <div class="side-item" data-view="activity" onclick="Profile.nav.show('activity')">Recent Activity
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Apps -->
+            <a class="side-link" href="/mail">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3">
+                    <rect x="3" y="3" width="14" height="14" rx="2" />
+                    <rect x="6" y="6" width="3.5" height="3.5" rx=".5" />
+                    <rect x="11" y="6" width="3.5" height="3.5" rx=".5" />
+                    <rect x="6" y="11" width="3.5" height="3.5" rx=".5" />
+                    <rect x="11" y="11" width="3.5" height="3.5" rx=".5" />
+                </svg>
+                My Apps
+            </a>
+
+            <!-- My Staff -->
+            <a class="side-link" href="#">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3">
+                    <circle cx="7" cy="6" r="3" />
+                    <circle cx="14" cy="7" r="2.5" />
+                    <path d="M1 17c0-3 3-5 6-5s6 2 6 5" />
+                    <path d="M13 12c2.5 0 5 1.5 5 4" />
+                </svg>
+                My Staff
+            </a>
+
+            <!-- My Groups -->
+            <div class="side-section" style="border-top:1px solid var(--border)">
+                <div class="side-section-header" onclick="Profile.actions.toggleSection('groups')">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3">
+                        <circle cx="10" cy="6" r="3" />
+                        <path d="M3 18c0-4 3-6 7-6s7 2 7 6" />
+                        <circle cx="16" cy="6" r="2" />
+                        <circle cx="4" cy="6" r="2" />
+                    </svg>
+                    My Groups
+                    <svg class="chevron collapsed" id="chev-groups" viewBox="0 0 12 12" fill="none"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                        <path d="M3 5l3 3 3-3" />
+                    </svg>
+                </div>
+                <div class="side-section-items hidden" id="items-groups">
+                    <div id="groups-list" style="padding:4px 0">
+                        <div style="padding:8px 48px;font-size:12px;color:var(--text3)">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="content" id="content-area">
+
+            <!-- Overview (default) -->
+            <div class="detail-section active" id="view-overview">
+                <div class="welcome-heading" id="welcome-heading">Welcome back</div>
+
+                <div class="profile-card" id="profile-card">
+                    <div class="profile-avatar-wrap">
+                        <div class="profile-avatar" id="profile-avatar">?</div>
+                        <div class="profile-edit-icon">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"
+                                stroke-linecap="round">
+                                <path d="M11.5 1.5l3 3L5 14H2v-3z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="profile-info">
+                        <div class="profile-name" id="profile-name">Loading...</div>
+                        <div class="profile-email" id="profile-email"></div>
+                        <div class="profile-why">
+                            Why can't I edit this?
+                            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round">
+                                <path d="M3 5l3 3 3-3" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Keep track -->
+                <div class="section-title">Keep track</div>
+                <div class="keep-track">
+                    <div class="keep-track-emoji">🎉</div>
+                    <div class="keep-track-text">You're all caught up! You have no pending tasks.</div>
+                </div>
+
+                <!-- Account setup -->
+                <div class="section-title">Account setup</div>
+                <div class="setup-grid">
+                    <div class="setup-card" onclick="Profile.nav.show('security')">
+                        <div class="setup-card-icon" style="background:#e8f4fd">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#0078d4" stroke-width="1.5">
+                                <path d="M12 2l8 4v6c0 5.5-3.5 10-8 11-4.5-1-8-5.5-8-11V6l8-4z" />
+                                <path d="M9 12l2 2 4-4" />
+                            </svg>
+                        </div>
+                        <div class="setup-card-title">Security info</div>
+                        <div class="setup-card-desc">Set up your security verification methods to keep your account
+                            safe.</div>
+                    </div>
+                    <div class="setup-card" onclick="Profile.nav.show('password')">
+                        <div class="setup-card-icon" style="background:#fdf2e8">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ca5010" stroke-width="1.5">
+                                <rect x="3" y="11" width="18" height="10" rx="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                <circle cx="12" cy="16" r="1.5" />
+                            </svg>
+                        </div>
+                        <div class="setup-card-title">Change password</div>
+                        <div class="setup-card-desc">Update your password regularly to help protect your account.</div>
+                    </div>
+                    <div class="setup-card" onclick="Profile.nav.show('devices')">
+                        <div class="setup-card-icon" style="background:#e8f9e8">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#107c10" stroke-width="1.5">
+                                <rect x="2" y="3" width="20" height="14" rx="2" />
+                                <path d="M8 21h8M12 17v4" />
+                            </svg>
+                        </div>
+                        <div class="setup-card-title">Devices</div>
+                        <div class="setup-card-desc">View and manage devices that are connected to your account.</div>
+                    </div>
+                    <div class="setup-card" onclick="Profile.nav.show('organizations')">
+                        <div class="setup-card-icon" style="background:#f3e8f9">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#7719aa" stroke-width="1.5">
+                                <rect x="2" y="6" width="8" height="16" rx="1" />
+                                <rect x="14" y="2" width="8" height="20" rx="1" />
+                                <path d="M5 10h2M5 14h2M17 6h2M17 10h2M17 14h2" />
+                            </svg>
+                        </div>
+                        <div class="setup-card-title">Organizations</div>
+                        <div class="setup-card-desc">View the organizations you belong to and manage access.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Info -->
+            <div class="detail-section" id="view-security">
+                <div class="section-title" style="padding-top:32px">Security Info</div>
+                <p style="font-size:13px;color:var(--text2);margin-bottom:16px">These are the methods you use to sign in
+                    to your account or reset your password.</p>
+                <div id="security-content">
+                    <div class="detail-row">
+                        <div class="detail-label">Account status</div>
+                        <div class="detail-value" id="sec-status">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Account created</div>
+                        <div class="detail-value" id="sec-created">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">User Principal Name</div>
+                        <div class="detail-value" id="sec-upn">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Devices -->
+            <div class="detail-section" id="view-devices">
+                <div class="section-title" style="padding-top:32px">Devices</div>
+                <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Manage devices connected to your
+                    account.</p>
+                <div id="devices-content">
+                    <div style="display:flex;align-items:center;justify-content:center;padding:40px">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="detail-section" id="view-password">
+                <div class="section-title" style="padding-top:32px">Change Password</div>
+                <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Password changes must be done through
+                    your organization's portal or via Microsoft directly.</p>
+                <a href="https://account.live.com/password/change" target="_blank" class="btn btn-primary"
+                    style="text-decoration:none">Change password on Microsoft</a>
+            </div>
+
+            <!-- Organizations -->
+            <div class="detail-section" id="view-organizations">
+                <div class="section-title" style="padding-top:32px">Organizations</div>
+                <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Organizations you're a member of.</p>
+                <div id="org-content">
+                    <div style="display:flex;align-items:center;justify-content:center;padding:40px">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings & Privacy -->
+            <div class="detail-section" id="view-privacy">
+                <div class="section-title" style="padding-top:32px">Settings & Privacy</div>
+                <div id="privacy-content">
+                    <div class="detail-row">
+                        <div class="detail-label">Display Name</div>
+                        <div class="detail-value" id="priv-display">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Job Title</div>
+                        <div class="detail-value" id="priv-job">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Department</div>
+                        <div class="detail-value" id="priv-dept">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Office</div>
+                        <div class="detail-value" id="priv-office">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Phone</div>
+                        <div class="detail-value" id="priv-phone">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">City</div>
+                        <div class="detail-value" id="priv-city">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Country</div>
+                        <div class="detail-value" id="priv-country">—</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Company</div>
+                        <div class="detail-value" id="priv-company">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="detail-section" id="view-activity">
+                <div class="section-title" style="padding-top:32px">Recent Activity</div>
+                <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Recent activity on your account.</p>
+                <div id="activity-content">
+                    <div style="display:flex;align-items:center;justify-content:center;padding:40px">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/profile.js"></script>
+</body>
+
+</html>

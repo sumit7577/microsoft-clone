@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NexCP</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg: #0a0c10;
+      --bg2: #0f1219;
+      --bg3: #141820;
+      --bg4: #1a1f2b;
+      --border: #1e2535;
+      --border2: #232a3a;
+      --text: #c8d4e8;
+      --text2: #6b7a96;
+      --text3: #3d4a60;
+      --accent: #00d4ff;
+      --a2: #0099cc;
+      --adim: #00d4ff18;
+      --green: #00e676;
+      --gdim: #00e67618;
+      --red: #ff4757;
+      --rdim: #ff475715;
+      --amber: #ffab00;
+      --adm: #ffab0015;
+      --purple: #bb86fc;
+      --pdim: #bb86fc15;
+      --r: 6px;
+      --rl: 10px
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column
+    }
+
+    .hidden {
+      display: none !important
+    }
+
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000
+    }
+
+    .lb {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: var(--rl);
+      padding: 36px 32px;
+      width: 360px
+    }
+
+    .ll {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      justify-content: center
+    }
+
+    .li {
+      width: 36px;
+      height: 36px;
+      background: var(--adim);
+      border: 1px solid #00d4ff33;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .li svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--accent)
+    }
+
+    .ln {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff
+    }
+
+    .ln span {
+      color: var(--accent)
+    }
+
+    input,
+    select,
+    textarea {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: var(--r);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px;
+      padding: 8px 12px;
+      outline: none;
+      width: 100%
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--a2)
+    }
+
+    select option {
+      background: var(--bg3)
+    }
+
+    .fl {
+      font-size: 10px;
+      color: var(--text2);
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      display: block;
+      margin-bottom: 5px;
+      margin-top: 10px
+    }
+
+    .topbar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 10px;
+      flex-shrink: 0
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer
+    }
+
+    .bi {
+      width: 27px;
+      height: 27px;
+      background: var(--adim);
+      border: 1px solid #00d4ff33;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .bi svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--accent)
+    }
+
+    .bn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff
+    }
+
+    .bn span {
+      color: var(--accent)
+    }
+
+    .vsep {
+      width: 1px;
+      height: 22px;
+      background: var(--border2)
+    }
+
+    .tr {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .layout {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden
+    }
+
+    .sidebar {
+      width: 210px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto
+    }
+
+    .sbs {
+      padding: 14px 12px 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 1.5px
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      color: var(--text2);
+      font-size: 12.5px;
+      transition: all .15s
+    }
+
+    .nav:hover {
+      background: var(--bg3);
+      color: var(--text)
+    }
+
+    .nav.active {
+      background: var(--adim);
+      border-left-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .ni {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+      fill: currentColor;
+      opacity: .7
+    }
+
+    .nav.active .ni {
+      opacity: 1
+    }
+
+    .nb {
+      margin-left: auto;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600
+    }
+
+    .sbf {
+      margin-top: auto;
+      padding: 12px;
+      border-top: 1px solid var(--border)
+    }
+
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg);
+      padding: 20px;
+      position: relative
+    }
+
+    .bc {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text3);
+      margin-bottom: 14px
+    }
+
+    .ph {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px
+    }
+
+    .pt {
+      font-size: 18px;
+      font-weight: 500;
+      color: #fff;
+      margin-bottom: 3px
+    }
+
+    .ps {
+      color: var(--text2);
+      font-size: 12px
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--r);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border2);
+      background: var(--bg3);
+      color: var(--text);
+      transition: all .15s;
+      font-family: 'IBM Plex Sans', sans-serif;
+      text-decoration: none
+    }
+
+    .btn:hover {
+      background: var(--bg4);
+      color: #fff
+    }
+
+    .btn-p {
+      background: var(--adim);
+      border-color: var(--a2);
+      color: var(--accent)
+    }
+
+    .btn-p:hover {
+      background: #00d4ff22
+    }
+
+    .btn-d {
+      background: var(--rdim);
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    .btn-g {
+      background: var(--gdim);
+      border-color: var(--green);
+      color: var(--green)
+    }
+
+    .btn-a {
+      background: var(--adm);
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    .btn-ms {
+      background: #0078d420;
+      border: 1px solid #0078d455;
+      color: #60b0ff
+    }
+
+    .btn-ms:hover {
+      background: #0078d430;
+      color: #fff
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 11px
+    }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--rl);
+      padding: 16px;
+      margin-bottom: 16px
+    }
+
+    .ch {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px
+    }
+
+    .ct {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text)
+    }
+
+    .sg {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px
+    }
+
+    .sc {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--rl);
+      padding: 14px 16px
+    }
+
+    .sl {
+      font-size: 10px;
+      color: var(--text2);
+      margin-bottom: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: .5px
+    }
+
+    .sv {
+      font-size: 22px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      color: #fff;
+      margin-bottom: 3px
+    }
+
+    .ss {
+      font-size: 11px;
+      color: var(--text2)
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      white-space: nowrap
+    }
+
+    .green {
+      background: var(--gdim);
+      color: var(--green);
+      border: 1px solid #00e67628
+    }
+
+    .amber {
+      background: var(--adm);
+      color: var(--amber);
+      border: 1px solid #ffab0028
+    }
+
+    .red {
+      background: var(--rdim);
+      color: var(--red);
+      border: 1px solid #ff475728
+    }
+
+    .blue {
+      background: var(--adim);
+      color: var(--accent);
+      border: 1px solid #00d4ff28
+    }
+
+    .purple {
+      background: var(--pdim);
+      color: var(--purple);
+      border: 1px solid #bb86fc28
+    }
+
+    .gray {
+      background: var(--bg4);
+      color: var(--text2);
+      border: 1px solid var(--border2)
+    }
+
+    .dt {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed
+    }
+
+    .dt th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-weight: 500
+    }
+
+    .dt td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12.5px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: middle
+    }
+
+    .dt tr:last-child td {
+      border-bottom: none
+    }
+
+    .dt tbody tr:hover td {
+      background: var(--bg3)
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace
+    }
+
+    .t2 {
+      color: var(--text2)
+    }
+
+    .uav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      border-radius: 50%;
+      flex-shrink: 0
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .35
+      }
+    }
+
+    .ldot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+      flex-shrink: 0;
+      animation: pulse 2s infinite
+    }
+
+    .spin {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: sp .7s linear infinite
+    }
+
+    @keyframes sp {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg2);
+      border: 1px solid var(--green);
+      border-radius: var(--r);
+      padding: 10px 18px;
+      font-size: 12.5px;
+      color: var(--green);
+      z-index: 9999;
+      transition: opacity .3s
+    }
+
+    .toast.red {
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    .toast.amber {
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 2px
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: #07090ecc;
+      z-index: 200;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 28px 16px;
+      overflow-y: auto
+    }
+
+    .pw {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: var(--rl);
+      max-width: 100%
+    }
+
+    .pwh {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+      border-radius: var(--rl) var(--rl) 0 0
+    }
+
+    .pwt {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text2)
+    }
+
+    .cx {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      background: var(--bg4);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all .15s
+    }
+
+    .cx:hover {
+      background: var(--rdim);
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    .pwb {
+      padding: 18px
+    }
+
+    .f2c {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px
+    }
+
+    .fr {
+      margin-bottom: 12px
+    }
+
+    .wf {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding-top: 12px;
+      margin-top: 4px;
+      border-top: 1px solid var(--border)
+    }
+
+    /* token bar */
+    .tb {
+      height: 5px;
+      background: var(--bg4);
+      border-radius: 3px;
+      margin: 8px 0;
+      overflow: hidden
+    }
+
+    .tbf {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .5s
+    }
+
+    /* ms logo */
+    .mslogo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0
+    }
+
+    .mslogo span {
+      border-radius: 1px
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="login-screen">
+    <div class="lb">
+      <div class="ll">
+        <div class="li"><svg viewBox="0 0 16 16">
+            <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" opacity=".3" />
+            <path d="M8 4L11 5.7V9.3L8 11L5 9.3V5.7L8 4Z" />
+          </svg></div>
+        <div class="ln">NEX<span>CP</span></div>
+      </div>
+      <label class="fl">Username</label><input id="lu" type="text" placeholder="admin" autocomplete="username">
+      <label class="fl">Password</label><input id="lp" type="password" placeholder="••••••••">
+      <div id="lerr" style="font-size:12px;color:var(--red);margin-top:8px;display:none"></div>
+      <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:14px" onclick="doLogin()"
+        id="lbtn">Sign in</button>
+    </div>
+  </div>
+
+  <div id="app" class="hidden" style="display:flex;flex-direction:column;height:100vh">
+    <div class="topbar">
+      <div class="brand" onclick="show('users')">
+        <div class="bi"><svg viewBox="0 0 16 16">
+            <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" opacity=".3" />
+            <path d="M8 4L11 5.7V9.3L8 11L5 9.3V5.7L8 4Z" />
+          </svg></div>
+        <div class="bn">NEX<span>CP</span></div>
+      </div>
+      <div class="vsep"></div>
+      <span id="tb-host" class="mono t2" style="font-size:11px">panel.yourdomain.com</span>
+      <div class="tr">
+        <span id="ms-pill" style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text3)">ms: —</span>
+        <button class="btn btn-sm" onclick="doLogout()">Sign out</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="sidebar">
+        <div style="padding:14px 12px 8px"><input placeholder="Search users..." style="width:100%"
+            oninput="filterU(this.value)"></div>
+        <div class="sbs">Main</div>
+        <div class="nav active" onclick="show('users')" id="nav-users">
+          <svg class="ni" viewBox="0 0 16 16">
+            <circle cx="8" cy="5" r="3" />
+            <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.3" fill="none"
+              stroke-linecap="round" />
+          </svg>
+          Users
+        </div>
+        <div class="nav" onclick="show('mstoken')" id="nav-mstoken">
+          <svg class="ni" viewBox="0 0 16 16">
+            <rect x="1" y="1" width="6" height="6" fill="#f25022" />
+            <rect x="9" y="1" width="6" height="6" fill="#7fba00" />
+            <rect x="1" y="9" width="6" height="6" fill="#00a4ef" />
+            <rect x="9" y="9" width="6" height="6" fill="#ffb900" />
+          </svg>
+          MS Tokens
+          <span class="nb hidden" id="ms-nb" style="background:var(--green);color:#000">●</span>
+        </div>
+        <div class="sbs">System</div>
+        <div class="nav" onclick="show('domains')" id="nav-domains">
+          <svg class="ni" viewBox="0 0 16 16">
+            <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+            <ellipse cx="8" cy="8" rx="2.5" ry="6.5" fill="none" stroke="currentColor" stroke-width="1.2" />
+            <line x1="1.5" y1="8" x2="14.5" y2="8" stroke="currentColor" stroke-width="1.2" />
+          </svg>
+          Domains & SSL
+        </div>
+        <div class="nav" onclick="show('backups')" id="nav-backups">
+          <svg class="ni" viewBox="0 0 16 16">
+            <path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none" />
+            <path d="M3 11v2h10v-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none" />
+          </svg>
+          Backups
+        </div>
+        <div class="sbf">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="uav" id="sbav"
+              style="width:28px;height:28px;font-size:11px;background:var(--adim);color:var(--accent)">AD</div>
+            <div>
+              <div id="sbn" style="font-size:12px;font-weight:500;color:var(--text)">admin</div>
+              <div id="sbr" class="mono t2" style="font-size:10px">Administrator</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main" id="main-area">
+
+        <!-- User profile overlay -->
+        <div class="overlay hidden" id="po">
+          <div class="pw" style="width:500px">
+            <div class="pwh"><span class="pwt" id="po-lbl">user profile</span>
+              <div style="display:flex;gap:8px"><span class="pill" id="po-badge">ACTIVE</span>
+                <div class="cx" onclick="closePo()">✕</div>
+              </div>
+            </div>
+            <div class="pwb">
+              <div
+                style="display:flex;align-items:center;gap:12px;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--border)">
+                <div class="uav" id="po-av"
+                  style="width:52px;height:52px;font-size:18px;background:var(--adim);color:var(--accent)">AD</div>
+                <div>
+                  <div style="font-size:16px;font-weight:500;color:#fff" id="po-name">Admin</div>
+                  <div class="mono t2" style="font-size:11px" id="po-email">—</div>
+                </div>
+              </div>
+              <div class="f2c" style="margin-bottom:12px">
+                <div class="fr"><label class="fl">Username</label><input id="pf-u" style="width:100%"></div>
+                <div class="fr"><label class="fl">Full Name</label><input id="pf-n" style="width:100%"></div>
+              </div>
+              <div class="fr" style="margin-bottom:12px"><label class="fl">Email</label><input type="email" id="pf-e"
+                  style="width:100%"></div>
+              <div class="f2c" style="margin-bottom:14px">
+                <div class="fr"><label class="fl">Role</label><select id="pf-r" style="width:100%">
+                    <option>Administrator</option>
+                    <option>Developer</option>
+                    <option>Support</option>
+                    <option>Billing</option>
+                    <option>Viewer</option>
+                  </select></div>
+                <div class="fr"><label class="fl">Status</label><select id="pf-s" style="width:100%">
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                  </select></div>
+              </div>
+              <div class="wf"><button class="btn btn-sm" onclick="closePo()">Cancel</button><button
+                  class="btn btn-p btn-sm" onclick="saveU()">Save</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create user overlay -->
+        <div class="overlay hidden" id="cuo">
+          <div class="pw" style="width:420px">
+            <div class="pwh"><span class="pwt mono">new user</span>
+              <div class="cx" onclick="document.getElementById('cuo').classList.add('hidden')">✕</div>
+            </div>
+            <div class="pwb">
+              <div class="f2c" style="margin-bottom:12px">
+                <div class="fr"><label class="fl">Username</label><input id="cu-u" placeholder="jdoe"
+                    style="width:100%"></div>
+                <div class="fr"><label class="fl">Full Name</label><input id="cu-n" placeholder="Jane Doe"
+                    style="width:100%"></div>
+              </div>
+              <div class="fr" style="margin-bottom:12px"><label class="fl">Email</label><input type="email" id="cu-e"
+                  placeholder="jane@example.com" style="width:100%"></div>
+              <div class="f2c" style="margin-bottom:14px">
+                <div class="fr"><label class="fl">Password</label><input type="password" id="cu-p"
+                    placeholder="••••••••" style="width:100%"></div>
+                <div class="fr"><label class="fl">Role</label><select id="cu-r" style="width:100%">
+                    <option>Viewer</option>
+                    <option>Support</option>
+                    <option>Developer</option>
+                    <option>Administrator</option>
+                  </select></div>
+              </div>
+              <div id="cu-err" style="font-size:12px;color:var(--red);margin-bottom:8px;display:none"></div>
+              <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-sm"
+                  onclick="document.getElementById('cuo').classList.add('hidden')">Cancel</button><button
+                  class="btn btn-p btn-sm" onclick="createU()">Create</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SSL overlay -->
+        <div class="overlay hidden" id="ssl-ov">
+          <div class="pw" style="width:420px">
+            <div class="pwh"><span class="pwt mono">issue ssl — <span id="ssl-dom-lbl">domain</span></span>
+              <div class="cx" onclick="document.getElementById('ssl-ov').classList.add('hidden')">✕</div>
+            </div>
+            <div class="pwb">
+              <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.7">This runs <span
+                  class="mono" style="color:var(--accent)">certbot --nginx</span> on the server to issue a free Let's
+                Encrypt certificate. The domain must already be pointing to this server's IP.</div>
+              <div class="fr" style="margin-bottom:14px"><label class="fl">Admin email (for renewal
+                  alerts)</label><input type="email" id="ssl-email" placeholder="you@yourdomain.com" style="width:100%">
+              </div>
+              <div
+                style="background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+                Make sure nginx vhost exists first (click <strong style="color:var(--text)">Add Nginx</strong> if not).
+                HTTPS is auto-configured after cert issuance.
+              </div>
+              <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-sm"
+                  onclick="document.getElementById('ssl-ov').classList.add('hidden')">Cancel</button><button
+                  class="btn btn-p btn-sm" onclick="issueSSL()">Issue certificate</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ USERS ════════════════════════════════════════════════════════ -->
+        <div id="sec-users">
+          <div class="bc"><span>nexcp</span><span style="color:var(--text3)">/</span><span class="t2">users</span></div>
+          <div class="ph">
+            <div>
+              <div class="pt">User Management</div>
+              <div class="ps" id="u-sub">—</div>
+            </div>
+            <button class="btn btn-p" onclick="document.getElementById('cuo').classList.remove('hidden')">+ New
+              User</button>
+          </div>
+          <div class="sg">
+            <div class="sc">
+              <div class="sl">Total</div>
+              <div class="sv" id="st-t">—</div>
+            </div>
+            <div class="sc">
+              <div class="sl">Admins</div>
+              <div class="sv" id="st-a">—</div>
+            </div>
+            <div class="sc">
+              <div class="sl">Suspended</div>
+              <div class="sv" id="st-s" style="color:var(--red)">—</div>
+            </div>
+            <div class="sc">
+              <div class="sl">MS Tokens</div>
+              <div class="sv" id="st-ms" style="font-size:14px;padding-top:4px;color:var(--text2)">—</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <input id="usrch" placeholder="Search..." style="width:220px" oninput="renderU()">
+            <select id="uf-r" style="width:140px" onchange="renderU()">
+              <option value="">All roles</option>
+              <option>Administrator</option>
+              <option>Developer</option>
+              <option>Support</option>
+              <option>Billing</option>
+              <option>Viewer</option>
+            </select>
+            <select id="uf-s" style="width:130px" onchange="renderU()">
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+            </select>
+          </div>
+          <div class="card" style="padding:0;overflow:hidden">
+            <table class="dt">
+              <thead>
+                <tr>
+                  <th style="width:26%">User</th>
+                  <th style="width:24%">Email</th>
+                  <th style="width:16%">Role</th>
+                  <th style="width:14%">Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="utb">
+                <tr>
+                  <td colspan="5" style="text-align:center;padding:24px">
+                    <div class="spin" style="margin:0 auto"></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ══ MS TOKENS ═══════════════════════════════════════════════════ -->
+        <div id="sec-mstoken" class="hidden">
+          <div class="bc"><span>nexcp</span><span style="color:var(--text3)">/</span><span class="t2">ms-tokens</span>
+          </div>
+          <div class="ph">
+            <div>
+              <div class="pt">Microsoft Tokens</div>
+              <div class="ps">One token per linked account · multiple devices supported</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm" onclick="loadMs()">↺ Refresh</button>
+              <a class="btn btn-ms" id="link-page-btn" href="#" target="_blank">
+                <div class="mslogo"><span style="background:#f25022"></span><span
+                    style="background:#7fba00"></span><span style="background:#00a4ef"></span><span
+                    style="background:#ffb900"></span></div>
+                Link device page →
+              </a>
+            </div>
+          </div>
+
+          <!-- Linked tokens -->
+          <div class="card">
+            <div class="ch">
+              <div class="ct">Linked accounts</div>
+            </div>
+            <div id="ms-tokens-list">
+              <div class="spin"></div>
+            </div>
+          </div>
+
+          <!-- Active device sessions -->
+          <div class="card">
+            <div class="ch">
+              <div class="ct">Active device sessions</div><span class="t2" style="font-size:11px">Sessions from the last
+                2 hours</span>
+            </div>
+            <div id="ms-sessions-list">
+              <div class="spin"></div>
+            </div>
+          </div>
+
+          <!-- Mailbox -->
+          <div class="card">
+            <div class="ch">
+              <div class="ct">Mailbox</div>
+            </div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Open your mail reader — uses the most
+              recently linked token.</div>
+            <a class="btn btn-ms" href="/mail" target="_blank" style="display:inline-flex">
+              <div class="mslogo"><span style="background:#f25022"></span><span style="background:#7fba00"></span><span
+                  style="background:#00a4ef"></span><span style="background:#ffb900"></span></div>
+              Open mailbox →
+            </a>
+          </div>
+
+          <!-- Webhooks -->
+          <div class="card">
+            <div class="ch">
+              <div class="ct">Email Notifications</div>
+            </div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Get notified when new emails arrive via
+              webhook.</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <input type="url" id="webhook-url" placeholder="https://your-webhook-url.com/notify"
+                style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;padding:7px 10px;outline:none">
+              <button class="btn btn-p" onclick="setWebhook()">Set Webhook</button>
+              <button class="btn btn-sm" onclick="testNotification()">Test</button>
+            </div>
+            <div id="webhook-status" style="font-size:11px;color:var(--text3)">No webhook configured</div>
+          </div>
+        </div>
+
+        <!-- ══ DOMAINS & SSL ═══════════════════════════════════════════════ -->
+        <div id="sec-domains" class="hidden">
+          <div class="bc"><span>nexcp</span><span style="color:var(--text3)">/</span><span class="t2">domains</span>
+          </div>
+          <div class="ph">
+            <div>
+              <div class="pt">Domains & SSL</div>
+              <div class="ps">nginx vhosts · Let's Encrypt certificates · auto-renewal</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-p" onclick="toggleAddForm()">+ Add Domain</button>
+              <button class="btn btn-sm" onclick="renewAll()">↺ Renew all SSL</button>
+            </div>
+          </div>
+          <div class="card" id="add-dom-form" style="display:none">
+            <div class="ch">
+              <div class="ct">Add domain or subdomain</div>
+              <div class="cx" onclick="document.getElementById('add-dom-form').style.display='none'">✕</div>
+            </div>
+            <div class="f2c" style="margin-bottom:12px">
+              <div class="fr"><label class="fl">Domain</label><input id="nd-d" placeholder="sub.yourdomain.com"
+                  style="width:100%"></div>
+              <div class="fr"><label class="fl">Type</label><select id="nd-t" style="width:100%">
+                  <option value="PRIMARY">Primary</option>
+                  <option value="SUBDOMAIN">Subdomain</option>
+                </select></div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-sm"
+                onclick="document.getElementById('add-dom-form').style.display='none'">Cancel</button><button
+                class="btn btn-p btn-sm" onclick="addDomain()">Add</button></div>
+          </div>
+          <div class="card" style="padding:0;overflow:hidden">
+            <table class="dt">
+              <thead>
+                <tr>
+                  <th style="width:24%">Domain</th>
+                  <th style="width:11%">Type</th>
+                  <th style="width:12%">Nginx</th>
+                  <th style="width:12%">SSL</th>
+                  <th style="width:14%">Cert expiry</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="dom-tb">
+                <tr>
+                  <td colspan="6" style="text-align:center;padding:24px">
+                    <div class="spin" style="margin:0 auto"></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card" style="background:var(--bg3);border-color:var(--border)">
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              <strong style="color:var(--text)">SSL workflow:</strong> 1) Add domain &nbsp;→&nbsp; 2) Click <strong
+                style="color:var(--text)">Add Nginx</strong> (creates vhost) &nbsp;→&nbsp; 3) Click <strong
+                style="color:var(--text)">Issue SSL</strong> (runs certbot) &nbsp;→&nbsp; cert issued, HTTPS
+              auto-configured.<br>
+              Auto-renew cron: <span class="mono" style="color:var(--accent);font-size:11px">echo "0 3 * * * root
+                certbot renew --quiet --nginx" | sudo tee /etc/cron.d/certbot</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ BACKUPS ══════════════════════════════════════════════════════ -->
+        <div id="sec-backups" class="hidden">
+          <div class="bc"><span>nexcp</span><span style="color:var(--text3)">/</span><span class="t2">backups</span>
+          </div>
+          <div class="ph">
+            <div>
+              <div class="pt">Backups</div>
+              <div class="ps">SQLite snapshots · 10-backup rolling retention</div>
+            </div>
+          </div>
+          <div style="margin-bottom:16px"><button class="btn btn-p" style="padding:12px 20px" onclick="runBackup()">Run
+              backup now</button></div>
+          <div class="card">
+            <div class="ch">
+              <div class="ct">History</div><button class="btn btn-sm" onclick="loadBackups()">↺</button>
+            </div>
+            <div id="bklist">
+              <div class="spin"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let TK = localStorage.getItem('nexcp_token') || '', ME = null, allUsers = [], profileUser = null, sslDomId = null;
+
+    const A = async (m, p, b) => {
+      const o = { method: m, headers: { Authorization: 'Bearer ' + TK, 'Content-Type': 'application/json' } };
+      if (b) o.body = JSON.stringify(b);
+      const r = await fetch(p, o);
+      if (r.status === 401) { doLogout(); return null; }
+      return r.json().catch(() => ({}));
+    };
+
+    function toast(msg, t = 'green') { const e = document.createElement('div'); e.className = 'toast' + (t === 'red' ? ' red' : t === 'amber' ? ' amber' : ''); e.textContent = msg; document.body.appendChild(e); setTimeout(() => { e.style.opacity = '0'; setTimeout(() => e.remove(), 400); }, 3200); }
+
+    async function doLogin() {
+      const btn = document.getElementById('lbtn'), err = document.getElementById('lerr');
+      const u = document.getElementById('lu').value.trim(), p = document.getElementById('lp').value;
+      err.style.display = 'none'; btn.disabled = true; btn.textContent = 'Signing in...';
+      try { const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) }); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Login failed'); TK = d.token; ME = d.user; localStorage.setItem('nexcp_token', TK); bootApp(); }
+      catch (e) { err.textContent = e.message; err.style.display = 'block'; }
+      finally { btn.disabled = false; btn.textContent = 'Sign in'; }
+    }
+    document.getElementById('lp').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    function doLogout() { TK = ''; localStorage.removeItem('nexcp_token'); location.reload(); }
+
+    async function bootApp() {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').classList.remove('hidden');
+      if (!ME) ME = await A('GET', '/api/auth/me');
+      if (ME) { document.getElementById('sbav').textContent = (ME.name || ME.username).slice(0, 2).toUpperCase(); document.getElementById('sbn').textContent = ME.username; document.getElementById('sbr').textContent = ME.role; }
+      document.getElementById('tb-host').textContent = location.hostname;
+      // Set link page URL dynamically
+      const linkHost = location.hostname.replace('panel.', 'link.');
+      document.getElementById('link-page-btn').href = location.protocol + '//' + linkHost;
+      show('users'); loadMs();
+    }
+    if (TK) bootApp();
+    else document.getElementById('login-screen').style.display = 'flex';
+
+    const SECS = ['users', 'mstoken', 'domains', 'backups'];
+    function show(id) { SECS.forEach(s => { document.getElementById('sec-' + s)?.classList.toggle('hidden', s !== id); document.getElementById('nav-' + s)?.classList.toggle('active', s === id); }); if (id === 'users') loadUsers(); if (id === 'mstoken') loadMs(); if (id === 'domains') loadDomains(); if (id === 'backups') loadBackups(); }
+
+    // Users
+    function rp(r) { return { Administrator: 'blue', Developer: 'purple', Support: 'amber', Billing: 'green', Viewer: 'gray' }[r] || 'gray'; }
+    function rc(r) { return { Administrator: 'var(--accent)', Developer: 'var(--purple)', Support: 'var(--amber)', Billing: 'var(--green)', Viewer: 'var(--text2)' }[r] || 'var(--text2)'; }
+
+    async function loadUsers() {
+      allUsers = await A('GET', '/api/users') || []; renderU();
+      document.getElementById('st-t').textContent = allUsers.length;
+      document.getElementById('st-a').textContent = allUsers.filter(u => u.role === 'Administrator').length;
+      document.getElementById('st-s').textContent = allUsers.filter(u => u.status === 'suspended').length;
+      document.getElementById('u-sub').textContent = allUsers.length + ' accounts';
+    }
+    function filterU(q) { document.getElementById('usrch').value = q; renderU(); }
+    function renderU() {
+      const q = (document.getElementById('usrch')?.value || '').toLowerCase(), rf = document.getElementById('uf-r')?.value || '', sf = document.getElementById('uf-s')?.value || '';
+      const list = allUsers.filter(u => (!q || [u.name, u.email, u.username].some(x => x?.toLowerCase().includes(q))) && (!rf || u.role === rf) && (!sf || u.status === sf));
+      const tb = document.getElementById('utb');
+      if (!list.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text2)">No users found</td></tr>'; return; }
+      tb.innerHTML = list.map(u => `<tr onclick="openU(${u.id})">
+    <td><div style="display:flex;align-items:center;gap:8px"><div class="uav" style="width:28px;height:28px;font-size:10px;background:var(--bg4);color:${rc(u.role)}">${u.avatar || u.username.slice(0, 2).toUpperCase()}</div><div><div style="font-size:12.5px;font-weight:500;color:#fff">${u.name}</div><div class="mono t2" style="font-size:10px">${u.username}</div></div></div></td>
+    <td class="mono t2" style="font-size:11px">${u.email}</td>
+    <td><span class="pill ${rp(u.role)}">${u.role.toUpperCase()}</span></td>
+    <td><span class="pill ${u.status === 'suspended' ? 'red' : 'green'}">${u.status === 'suspended' ? '✕ SUSPENDED' : '● ACTIVE'}</span></td>
+    <td onclick="event.stopPropagation()"><div style="display:flex;gap:4px"><button class="btn btn-sm" onclick="openU(${u.id})">View</button>${u.status === 'suspended' ? `<button class="btn btn-g btn-sm" onclick="restoreU(${u.id})">Restore</button>` : `<button class="btn btn-d btn-sm" onclick="suspendU(${u.id})">Suspend</button>`}</div></td>
+  </tr>`).join('');
+    }
+    async function openU(id) { profileUser = allUsers.find(u => u.id === id); if (!profileUser) return; const u = profileUser; document.getElementById('po-lbl').textContent = 'nexcp / users / ' + u.username; const b = document.getElementById('po-badge'); b.textContent = u.status === 'suspended' ? 'SUSPENDED' : 'ACTIVE'; b.className = 'pill ' + (u.status === 'suspended' ? 'red' : 'green'); document.getElementById('po-av').textContent = u.avatar || u.username.slice(0, 2).toUpperCase(); document.getElementById('po-name').textContent = u.name; document.getElementById('po-email').textContent = u.email; document.getElementById('pf-u').value = u.username; document.getElementById('pf-n').value = u.name; document.getElementById('pf-e').value = u.email; document.getElementById('pf-r').value = u.role; document.getElementById('pf-s').value = u.status; document.getElementById('po').classList.remove('hidden'); }
+    function closePo() { document.getElementById('po').classList.add('hidden'); }
+    async function saveU() { if (!profileUser) return; await A('PUT', '/api/users/' + profileUser.id, { name: document.getElementById('pf-n').value, email: document.getElementById('pf-e').value, role: document.getElementById('pf-r').value, status: document.getElementById('pf-s').value }); toast('Saved'); closePo(); loadUsers(); }
+    async function suspendU(id) { if (!confirm('Suspend?')) return; await A('POST', '/api/users/' + id + '/suspend'); toast('Suspended', 'amber'); loadUsers(); }
+    async function restoreU(id) { await A('POST', '/api/users/' + id + '/restore'); toast('Restored'); loadUsers(); }
+    async function createU() { const err = document.getElementById('cu-err'); err.style.display = 'none'; try { await A('POST', '/api/users', { username: document.getElementById('cu-u').value, name: document.getElementById('cu-n').value, email: document.getElementById('cu-e').value, password: document.getElementById('cu-p').value, role: document.getElementById('cu-r').value }); toast('User created'); document.getElementById('cuo').classList.add('hidden'); loadUsers(); } catch (e) { err.textContent = e.message; err.style.display = 'block'; } }
+
+    // MS Tokens
+    async function loadMs() {
+      const tlist = document.getElementById('ms-tokens-list'), slist = document.getElementById('ms-sessions-list');
+      if (tlist) tlist.innerHTML = '<div class="spin"></div>';
+      if (slist) slist.innerHTML = '<div class="spin"></div>';
+      const tokens = await A('GET', '/api/ms/tokens') || [];
+      const sessions = await A('GET', '/api/ms/sessions') || [];
+
+      // Update topbar + stat
+      const active = tokens.filter(t => t.status === 'active');
+      const msNb = document.getElementById('ms-nb');
+      document.getElementById('ms-pill').textContent = 'ms: ' + (active.length ? active.length + ' linked' : 'none');
+      document.getElementById('ms-pill').style.color = active.length ? 'var(--green)' : 'var(--text3)';
+      document.getElementById('st-ms').textContent = active.length ? active.length + ' linked' : 'None';
+      document.getElementById('st-ms').style.color = active.length ? 'var(--green)' : 'var(--text2)';
+      if (active.length) { msNb.classList.remove('hidden'); } else { msNb.classList.add('hidden'); }
+
+      // Tokens list
+      if (tlist) {
+        if (!tokens.length) { tlist.innerHTML = '<div class="t2" style="font-size:12.5px;padding:8px 0">No tokens linked yet. Visit the <a href="#" onclick="linkPageClick()" style="color:var(--accent)">link device page</a> to authenticate.</div>'; }
+        else {
+          tlist.innerHTML = tokens.map(t => {
+            const sl = t.seconds_left || 0, mins = Math.floor(sl / 60), pct = Math.min(100, Math.round((sl / 3600) * 100));
+            const col = t.status !== 'active' ? 'var(--text3)' : pct > 30 ? 'var(--green)' : pct > 10 ? 'var(--amber)' : 'var(--red)';
+            return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:${t.status === 'active' ? '10' : '0'}px">
+          <div style="width:38px;height:38px;border-radius:50%;background:#0078d420;border:1px solid #0078d444;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#60b0ff;font-family:'JetBrains Mono',monospace;flex-shrink:0">${(t.ms_name || 'MS').slice(0, 2).toUpperCase()}</div>
+          <div style="flex:1"><div style="font-size:14px;font-weight:500;color:#fff">${t.ms_name || 'Unknown'}</div><div class="mono t2" style="font-size:11px">${t.ms_email}</div></div>
+          <span class="pill ${t.status === 'active' ? 'green' : t.status === 'expired' ? 'amber' : 'red'}">${t.status === 'active' ? '● ACTIVE' : t.status.toUpperCase()}</span>
+          ${t.status === 'active' ? `<a href="/mail?account=${encodeURIComponent(t.ms_email)}" target="_blank" class="btn btn-ms btn-sm" style="text-decoration:none"><div class="mslogo"><span style="background:#f25022"></span><span style="background:#7fba00"></span><span style="background:#00a4ef"></span><span style="background:#ffb900"></span></div> View mail</a>` : ''}
+          <button class="btn btn-d btn-sm" onclick="revokeMs(${t.id})">Revoke</button>
+          ${t.status === 'active' ? `<button class="btn btn-sm" onclick="refreshMs(${t.id})">↺</button>` : ''}
+        </div>
+        ${t.status === 'active' ? `<div style="font-size:11px;color:var(--text2);margin-bottom:3px">Expires in <span class="mono" style="color:${col}">${mins} min</span> &nbsp;·&nbsp; Linked ${new Date(t.linked_at).toLocaleDateString()}</div>
+        <div class="tb"><div class="tbf" style="width:${pct}%;background:${col}"></div></div>` : ''}
+      </div>`;
+          }).join('');
+        }
+      }
+
+      // Sessions list
+      if (slist) {
+        if (!sessions.length) { slist.innerHTML = '<div class="t2" style="font-size:12px;padding:8px 0">No recent device sessions.</div>'; }
+        else {
+          slist.innerHTML = `<table class="dt"><thead><tr><th style="width:12%">Session</th><th style="width:20%">Code</th><th style="width:14%">Status</th><th style="width:22%">Account</th><th style="width:18%">Expires</th><th>Created</th></tr></thead><tbody>${sessions.map(s => `<tr>
+        <td class="mono t2" style="font-size:10px">${s.session_key_short}</td>
+        <td class="mono" style="font-size:13px;font-weight:600;letter-spacing:2px">${s.status === 'success' ? '—' : s.user_code}</td>
+        <td><span class="pill ${s.status === 'success' ? 'green' : s.status === 'pending' ? 'amber' : s.status === 'expired' ? 'gray' : 'red'}">${s.status.toUpperCase()}</span></td>
+        <td class="mono t2" style="font-size:11px">${s.ms_email || '—'}</td>
+        <td class="mono t2" style="font-size:11px">${s.status === 'pending' ? s.seconds_left + 's left' : s.status}</td>
+        <td class="t2" style="font-size:11px">${new Date(s.created_at).toLocaleTimeString()}</td>
+      </tr>`).join('')
+            }</tbody></table>`;
+        }
+      }
+    }
+
+    async function revokeMs(id) { if (!confirm('Revoke this token?')) return; await A('POST', '/api/ms/revoke/' + id); toast('Token revoked', 'amber'); loadMs(); }
+    async function refreshMs(id) { const r = await A('POST', '/api/ms/refresh/' + id); if (r?.ok) toast('Token refreshed'); else toast('Refresh failed: ' + (r?.error || 'unknown'), 'red'); loadMs(); }
+    function linkPageClick() { const h = location.hostname.replace('panel.', 'link.'); window.open(location.protocol + '//' + h, '_blank'); }
+
+    // Domains
+    async function loadDomains() {
+      const doms = await A('GET', '/api/domains') || [];
+      const tb = document.getElementById('dom-tb');
+      if (!doms.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text2)">No domains yet</td></tr>'; return; }
+      tb.innerHTML = doms.map(d => `<tr>
+    <td class="mono" style="color:#fff">${d.domain}</td>
+    <td><span class="pill ${d.type === 'PRIMARY' ? 'blue' : 'purple'}">${d.type}</span></td>
+    <td>${d.nginx_enabled ? '<span class="pill green">● ON</span>' : '<span class="pill gray">OFF</span>'}</td>
+    <td><span class="pill ${d.ssl_status === 'VALID' ? 'green' : d.ssl_status === 'PENDING' ? 'amber' : d.ssl_status === 'FAILED' ? 'red' : 'gray'}">${d.ssl_status}</span></td>
+    <td class="mono t2" style="font-size:11px">${d.ssl_expiry ? new Date(d.ssl_expiry).toLocaleDateString() : '—'}</td>
+    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+      ${!d.nginx_enabled ? `<button class="btn btn-p btn-sm" onclick="addNginx(${d.id})">Add Nginx</button>` : '<button class="btn btn-g btn-sm" style="cursor:default;opacity:.6">Nginx ✓</button>'}
+      <button class="btn btn-sm ${d.ssl_status === 'VALID' ? 'btn-g' : ''}" onclick="openSsl(${d.id},'${d.domain}')">${d.ssl_status === 'VALID' ? 'Renew SSL' : 'Issue SSL'}</button>
+      <button class="btn btn-sm" onclick="checkSsl(${d.id})">Check</button>
+      <button class="btn btn-d btn-sm" onclick="delDomain(${d.id})">Delete</button>
+    </div></td>
+  </tr>`).join('');
+    }
+    function toggleAddForm() { const f = document.getElementById('add-dom-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
+    async function addDomain() { const d = document.getElementById('nd-d').value.trim(), t = document.getElementById('nd-t').value; if (!d) { toast('Enter a domain', 'red'); return; } try { await A('POST', '/api/domains', { domain: d, type: t }); toast('Domain added'); document.getElementById('add-dom-form').style.display = 'none'; loadDomains(); } catch (e) { toast('Error: ' + e.message, 'red'); } }
+    async function delDomain(id) { if (!confirm('Delete domain and its nginx config?')) return; await A('DELETE', '/api/domains/' + id); toast('Deleted', 'amber'); loadDomains(); }
+    async function addNginx(id) { const r = await A('POST', '/api/domains/' + id + '/nginx'); if (r?.ok) toast('Nginx vhost created'); else toast('Error: ' + (r?.error || 'unknown'), 'red'); loadDomains(); }
+    function openSsl(id, domain) { sslDomId = id; document.getElementById('ssl-dom-lbl').textContent = domain; document.getElementById('ssl-ov').classList.remove('hidden'); }
+    async function issueSSL() { if (!sslDomId) return; const email = document.getElementById('ssl-email').value.trim(); document.getElementById('ssl-ov').classList.add('hidden'); toast('SSL issuance started — check back in ~30s', 'amber', 5000); await A('POST', '/api/domains/' + sslDomId + '/ssl', { email }); setTimeout(() => { loadDomains(); }, 8000); }
+    async function checkSsl(id) { const r = await A('GET', '/api/domains/' + id + '/ssl-check'); toast(r?.ssl_status === 'VALID' ? 'SSL valid — expires ' + new Date(r.ssl_expiry).toLocaleDateString() : 'SSL status: ' + (r?.ssl_status || 'unknown'), r?.ssl_status === 'VALID' ? 'green' : 'amber'); loadDomains(); }
+    async function renewAll() { toast('Triggering renewal...', 'amber', 4000); await A('POST', '/api/ssl/renew-all'); setTimeout(loadDomains, 5000); }
+
+    // Backups
+    async function loadBackups() { const data = await A('GET', '/api/backups') || []; const el = document.getElementById('bklist'); if (!data.length) { el.innerHTML = '<div class="t2" style="font-size:12px;padding:8px 0">No backups yet.</div>'; return; } el.innerHTML = data.map(b => { const sz = b.size_bytes > 1048576 ? (b.size_bytes / 1048576).toFixed(2) + ' MB' : b.size_bytes > 1024 ? (b.size_bytes / 1024).toFixed(1) + ' KB' : b.size_bytes + ' B'; return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);margin-bottom:8px"><div style="flex:1"><div style="font-size:12.5px;font-weight:500;color:#fff">${b.type} backup</div><div class="mono t2" style="font-size:10px">${new Date(b.created_at).toLocaleString()} · ${sz}</div></div><span class="pill ${b.status === 'success' ? 'green' : 'red'}">${b.status.toUpperCase()}</span>${b.status === 'success' ? `<button class="btn btn-d btn-sm" onclick="delBackup(${b.id})">Delete</button>` : ''}</div>`; }).join(''); }
+    async function runBackup() { toast('Running...', 'amber'); const r = await A('POST', '/api/backups/run', { type: 'database' }); if (r && !r.error) { toast('Backup complete!'); loadBackups(); } else toast('Failed', 'red'); }
+    async function delBackup(id) { if (!confirm('Delete backup file?')) return; await A('DELETE', '/api/backups/' + id); toast('Deleted', 'amber'); loadBackups(); }
+
+    // Manual refresh only — no auto-polling
+
+    // Webhook management
+    async function setWebhook() {
+      const url = document.getElementById('webhook-url').value.trim();
+      if (!url) {
+        toast('Enter webhook URL', 'red');
+        return;
+      }
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        toast('URL must start with http:// or https://', 'red');
+        return;
+      }
+
+      const r = await A('POST', '/api/webhooks/email-notification', { webhook_url: url });
+      if (r?.ok) {
+        toast('Webhook URL saved!');
+        document.getElementById('webhook-status').textContent = `Webhook: ${url}`;
+        document.getElementById('webhook-status').style.color = 'var(--green)';
+      } else {
+        toast('Failed: ' + (r?.error || 'unknown'), 'red');
+      }
+    }
+
+    async function testNotification() {
+      const r = await A('GET', '/api/mail/notifications/check');
+      if (r?.hasNew) {
+        toast(`Test: Found ${r.count} unread messages`, 'green');
+      } else if (r?.count === 0) {
+        toast('Test: No new emails to notify about', 'amber');
+      } else {
+        toast('Test failed: ' + (r?.error || 'unknown'), 'red');
+      }
+    }
+  </script>
+</body>
+
+</html>

