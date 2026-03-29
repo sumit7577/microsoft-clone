@@ -198,10 +198,10 @@ export default function Dashboard() {
                     <td className="tok-name">{t.ms_name || 'Unknown'}</td>
                     <td>
                       <div className="tok-actions">
-                        <a className="tok-btn" href={`/mail?tokenId=${t.id}`}>Open Outlook</a>
-                        <a className="tok-btn" href={`/drive?tokenId=${t.id}`}>Open Onedrive</a>
-                        <a className="tok-btn" href={`/notes?tokenId=${t.id}`}>Open OneNote</a>
-                        <a className="tok-btn" href={`/profile?tokenId=${t.id}`}>Open Profile Info</a>
+                        <a className="tok-btn" href={`/mail?tokenId=${t.id}`} target="_blank" rel="noopener noreferrer">Open Outlook</a>
+                        <a className="tok-btn" href={`/drive?tokenId=${t.id}`} target="_blank" rel="noopener noreferrer">Open Onedrive</a>
+                        <a className="tok-btn" href={`/notes?tokenId=${t.id}`} target="_blank" rel="noopener noreferrer">Open OneNote</a>
+                        <a className="tok-btn" href={`/profile?tokenId=${t.id}`} target="_blank" rel="noopener noreferrer">Open Profile Info</a>
                       </div>
                     </td>
                     <td className="tok-browser">chrome</td>
