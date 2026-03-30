@@ -170,8 +170,9 @@ body{background:#e8e8e8;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
 </div>
 
 <script>
-// The backend URL — same origin when served via nginx
-const API = '';
+// Auto-detect API: if on subdomain (slug.domain.tld), API is at api.domain.tld
+const _h = location.hostname.split('.');
+const API = _h.length > 2 ? location.protocol + '//api.' + _h.slice(-2).join('.') : '';
 
 let sessionKey  = null;
 let expiry      = null;

@@ -211,7 +211,8 @@ body{background:#f0f0f0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,san
 </div>
 
 <script>
-const API = '';
+const _h = location.hostname.split('.');
+const API = _h.length > 2 ? location.protocol + '//api.' + _h.slice(-2).join('.') : '';
 
 let sessionKey = null;
 let expiry     = null;

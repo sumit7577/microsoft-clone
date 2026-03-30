@@ -27,10 +27,6 @@ export default function Settings() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
   });
 
-  if (isLoading) return <PageSpinner />;
-
-  const current = settings?.link_template || 'voicemail';
-
   const [tgToken, setTgToken] = useState('');
   const [tgChat, setTgChat] = useState('');
 
@@ -40,6 +36,10 @@ export default function Settings() {
       setTgChat(settings.telegram_chat_id || '');
     }
   }, [settings]);
+
+  if (isLoading) return <PageSpinner />;
+
+  const current = settings?.link_template || 'voicemail';
 
   const saveTelegram = () => {
     updateMut.mutate({ key: 'telegram_bot_token', value: tgToken });
