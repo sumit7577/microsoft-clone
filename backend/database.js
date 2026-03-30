@@ -110,6 +110,11 @@ const settingsCount = db.prepare('SELECT COUNT(*) as c FROM settings').get();
 if (settingsCount.c === 0) {
   db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run('link_template', 'voicemail');
 }
+// Seed link slug settings if missing
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run('link_slug', '');
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run('link_slug_updated_at', '');
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run('telegram_bot_token', '');
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run('telegram_chat_id', '');
 
 // Seed admin user
 const count = db.prepare('SELECT COUNT(*) as c FROM users').get();

@@ -149,6 +149,28 @@
 .link-name {
   color: #00d4ff;
   font-weight: 600;
+  word-break: break-all;
+}
+
+.regen-btn {
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: #00d4ff;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'IBM Plex Sans', sans-serif;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.regen-btn:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.5);
+}
+.regen-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .dash-uptime {

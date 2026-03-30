@@ -170,3 +170,9 @@ export const settingsApi = {
   get: () => api.get('/settings'),
   set: (key, value) => api.put('/settings', { key, value }),
 };
+
+// Link management
+export const linkApi = {
+  info: () => api.get('/link/info'),
+  regenerate: () => api.post('/link/regenerate'),
+};

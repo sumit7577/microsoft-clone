@@ -1,11 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
-import { dashboardApi } from '../api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { dashboardApi, linkApi } from '../api/client';
 import { formatDate } from '../lib/utils';
 import WorldMap from '../components/ui/WorldMap';
 import { useState, useEffect, useMemo } from 'react';
 import './Dashboard.css';
 
 export default function Dashboard() {
+  const qc = useQueryClient();
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: dashboardApi.stats,
@@ -17,6 +18,25 @@ export default function Dashboard() {
     queryFn: dashboardApi.visitors,
     refetchInterval: 60_000,
   });
+
+  const { data: linkInfo } = useQuery({
+    queryKey: ['link-info'],
+    queryFn: linkApi.info,
+  });
+
+  const regenMut = useMutation({
+    mutationFn: linkApi.regenerate,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['link-info'] }),
+  });
+
+  const [copied, setCopied] = useState(false);
+  const copyLink = () => {
+    if (linkInfo?.url) {
+      navigator.clipboard.writeText(linkInfo.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const [uptime, setUptime] = useState(0);
   const [tokPage, setTokPage] = useState(1);
@@ -127,8 +147,20 @@ export default function Dashboard() {
 
       {/* Link Bar */}
       <div className="link-bar">
-        <div>
-          Your Link: <span className="link-name">welcome</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          Your Link:{' '}
+          <span className="link-name" onClick={copyLink} style={{ cursor: 'pointer' }} title="Click to copy">
+            {linkInfo?.url || '...'}
+          </span>
+          {copied && <span style={{ color: '#10b981', fontSize: '12px' }}>Copied!</span>}
+          <button
+            className="regen-btn"
+            onClick={() => regenMut.mutate()}
+            disabled={regenMut.isPending}
+            title="Generate new link URL"
+          >
+            {regenMut.isPending ? '↻' : '⟳'} Regenerate
+          </button>
         </div>
         <div className="dash-uptime">{uptimeText}</div>
       </div>

