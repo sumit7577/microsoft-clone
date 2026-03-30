@@ -15,7 +15,7 @@ services:
       - "3000"
     env_file: ./backend/.env
     environment:
-      VIRTUAL_HOST: ${API_DOMAIN},*.${LINK_BASE_DOMAIN}
+      VIRTUAL_HOST: "${API_DOMAIN},*.${LINK_BASE_DOMAIN}"
       VIRTUAL_PORT: 3000
       LETSENCRYPT_HOST: ${API_DOMAIN}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
