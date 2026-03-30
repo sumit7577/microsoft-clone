@@ -36,6 +36,8 @@ app.use((req, res, next) => {
   if (!host.endsWith('.' + LINK_BASE_DOMAIN)) return next();
   const sub = host.slice(0, -(LINK_BASE_DOMAIN.length + 1));
   if (!sub || sub.includes('.')) return next();
+  // Skip known service subdomains
+  if (['api', 'panel', 'www', 'mail'].includes(sub)) return next();
   const currentSlug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value;
   if (!currentSlug || sub !== currentSlug) return res.status(404).send('Not found');
   if (req.path.startsWith('/api/')) return next();
