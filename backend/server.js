@@ -1370,24 +1370,25 @@ app.put('/api/settings', auth, (req, res) => {
 
 // ══ LINK MANAGEMENT ══════════════════════════════════════════════════════════
 
+const SLUG_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+function generateSlug(len = 10) {
+  let s = '';
+  for (let i = 0; i < len; i++) s += SLUG_CHARS[Math.floor(Math.random() * SLUG_CHARS.length)];
+  return s;
+}
+
 app.get('/api/link/info', auth, (req, res) => {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const primary = db.prepare("SELECT * FROM domains WHERE type='PRIMARY' AND nginx_enabled=1 ORDER BY created_at ASC LIMIT 1").get();
   if (!primary) return res.json({ url: '', primary: null });
 
-  const subdomains = db.prepare("SELECT * FROM domains WHERE type='SUBDOMAIN' ORDER BY created_at DESC").all();
+  // Check for auto-generated subdomain first
+  const autoId = db.prepare("SELECT value FROM settings WHERE key = 'auto_link_domain_id'").get()?.value;
+  const autoDom = autoId && db.prepare("SELECT * FROM domains WHERE id=?").get(autoId);
+  if (autoDom) return res.json({ url: `${proto}://${autoDom.domain}`, primary: primary.domain });
 
-  // Active URL: active subdomain or bare primary domain
-  let url;
-  const activeSubId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_subdomain_id'").get()?.value;
-  const activeSub = activeSubId && subdomains.find(d => String(d.id) === activeSubId);
-  if (activeSub) {
-    url = `${proto}://${activeSub.domain}`;
-  } else {
-    url = `${proto}://${primary.domain}`;
-  }
-
-  res.json({ url, primary: primary.domain, subdomains: subdomains.map(d => ({ id: d.id, domain: d.domain })) });
+  // Fallback to bare primary
+  res.json({ url: `${proto}://${primary.domain}`, primary: primary.domain });
 });
 
 app.post('/api/link/regenerate', auth, (req, res) => {
@@ -1395,21 +1396,22 @@ app.post('/api/link/regenerate', auth, (req, res) => {
   const primary = db.prepare("SELECT * FROM domains WHERE type='PRIMARY' AND nginx_enabled=1 ORDER BY created_at ASC LIMIT 1").get();
   if (!primary) return res.status(400).json({ error: 'No PRIMARY domain enabled. Add one in Domains page and click Enable.' });
 
-  const subdomains = db.prepare("SELECT * FROM domains WHERE type='SUBDOMAIN' ORDER BY created_at DESC").all();
+  // Delete previous auto-generated subdomain
+  const oldAutoId = db.prepare("SELECT value FROM settings WHERE key = 'auto_link_domain_id'").get()?.value;
+  if (oldAutoId) db.prepare("DELETE FROM domains WHERE id=?").run(oldAutoId);
 
-  if (subdomains.length > 0) {
-    // Cycle through subdomains
-    const activeSubId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_subdomain_id'").get()?.value;
-    const currentIdx = subdomains.findIndex(d => String(d.id) === activeSubId);
-    const nextIdx = (currentIdx + 1) % subdomains.length;
-    const next = subdomains[nextIdx];
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('active_link_subdomain_id', ?)").run(String(next.id));
-    return res.json({ url: `${proto}://${next.domain}` });
+  // Create new random subdomain
+  const slug = generateSlug();
+  const newDomain = `${slug}.${primary.domain}`;
+  const r = db.prepare("INSERT INTO domains (domain, type) VALUES (?, 'SUBDOMAIN')").run(newDomain);
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('auto_link_domain_id', ?)").run(String(r.lastInsertRowid));
+
+  // Recreate container with updated domain list (old subdomain removed, new one added)
+  try { recreateLinkContainer(); } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 
-  // No subdomains — just return bare primary domain
-  db.prepare("DELETE FROM settings WHERE key = 'active_link_subdomain_id'").run();
-  return res.json({ url: `${proto}://${primary.domain}` });
+  return res.json({ url: `${proto}://${newDomain}` });
 });
 
 // ══ START ════════════════════════════════════════════════════════════════════
