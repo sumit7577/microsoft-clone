@@ -75,7 +75,7 @@ Mail.api = (() => {
   }
 
   async function getMessage(id) {
-    return get(`/api/mail/message/${encodeURIComponent(id)}`);
+    return get(`/api/mail/message?id=${encodeURIComponent(id)}`);
   }
 
   async function sendMail(to, cc, subject, body) {
@@ -83,23 +83,23 @@ Mail.api = (() => {
   }
 
   async function deleteMessage(id) {
-    return del(`/api/mail/message/${encodeURIComponent(id)}`);
+    return post('/api/mail/delete', { id });
   }
 
   async function moveMessage(id, folderId) {
-    return post(`/api/mail/move/${encodeURIComponent(id)}`, { folderId });
+    return post('/api/mail/move', { id, folderId });
   }
 
   async function markRead(id, isRead = true) {
-    return post(`/api/mail/read/${encodeURIComponent(id)}`, { isRead });
+    return post('/api/mail/read', { id, isRead });
   }
 
   async function forwardMessage(id, to, comment) {
-    return post(`/api/mail/forward/${encodeURIComponent(id)}`, { to, comment });
+    return post('/api/mail/forward', { id, to, comment });
   }
 
   async function replyMessage(id, comment) {
-    return post(`/api/mail/reply/${encodeURIComponent(id)}`, { comment });
+    return post('/api/mail/reply', { id, comment });
   }
 
   async function searchMail(q) {

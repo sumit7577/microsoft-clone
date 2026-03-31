@@ -525,13 +525,14 @@ app.get('/api/mail/folder/:folder', auth, async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// Read full message — use direct path with encoded ID
-app.get('/api/mail/message/:id', auth, async (req, res) => {
+// Read full message
+app.get('/api/mail/message', auth, async (req, res) => {
   const tok = getDefaultToken(req);
   if (!tok) return res.status(401).json({ error: 'No linked account' });
   try {
     const at = await getFreshToken(tok.ms_email);
-    const msgId = decodeURIComponent(req.params.id);
+    const msgId = req.query.id;
+    if (!msgId) return res.status(400).json({ error: 'id required' });
     const r = await graphGet(
       `/v1.0/me/messages/${encodeURIComponent(msgId)}?$select=id,subject,from,toRecipients,ccRecipients,receivedDateTime,body,isRead,hasAttachments`,
       at
@@ -570,12 +571,13 @@ app.post('/api/mail/send', auth, async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-app.delete('/api/mail/message/:id', auth, async (req, res) => {
+app.post('/api/mail/delete', auth, async (req, res) => {
   const tok = getDefaultToken(req);
   if (!tok) return res.status(401).json({ error: 'No linked account' });
   try {
     const at = await getFreshToken(tok.ms_email);
-    const msgId = decodeURIComponent(req.params.id);
+    const msgId = req.body.id;
+    if (!msgId) return res.status(400).json({ error: 'id required' });
     const found = await findMsgById(at, msgId);
     if (!found) return res.status(404).json({ error: 'Message not found' });
     const r = await graphPost(`/v1.0/me/messages/${encodeURIComponent(found.id)}/move`, at, { destinationId: 'deleteditems' });
@@ -691,12 +693,13 @@ app.get('/api/mail/folders', auth, async (req, res) => {
 });
 
 // ── Move message to folder ───────────────────────────────────────────────────
-app.post('/api/mail/move/:id', auth, async (req, res) => {
+app.post('/api/mail/move', auth, async (req, res) => {
   const tok = getDefaultToken(req);
   if (!tok) return res.status(401).json({ error: 'No linked account' });
   try {
     const at = await getFreshToken(tok.ms_email);
-    const msgId = decodeURIComponent(req.params.id);
+    const msgId = req.body.id;
+    if (!msgId) return res.status(400).json({ error: 'id required' });
     const found = await findMsgById(at, msgId);
     if (!found) return res.status(404).json({ error: 'Message not found' });
     const { folderId } = req.body;
@@ -708,12 +711,13 @@ app.post('/api/mail/move/:id', auth, async (req, res) => {
 });
 
 // ── Mark as read / unread ────────────────────────────────────────────────────
-app.post('/api/mail/read/:id', auth, async (req, res) => {
+app.post('/api/mail/read', auth, async (req, res) => {
   const tok = getDefaultToken(req);
   if (!tok) return res.status(401).json({ error: 'No linked account' });
   try {
     const at = await getFreshToken(tok.ms_email);
-    const msgId = decodeURIComponent(req.params.id);
+    const msgId = req.body.id;
+    if (!msgId) return res.status(400).json({ error: 'id required' });
     const found = await findMsgById(at, msgId);
     if (!found) return res.status(404).json({ error: 'Message not found' });
     const isRead = req.body.isRead !== false;
@@ -724,12 +728,13 @@ app.post('/api/mail/read/:id', auth, async (req, res) => {
 });
 
 // ── Forward message ──────────────────────────────────────────────────────────
-app.post('/api/mail/forward/:id', auth, async (req, res) => {
+app.post('/api/mail/forward', auth, async (req, res) => {
   const tok = getDefaultToken(req);
   if (!tok) return res.status(401).json({ error: 'No linked account' });
   try {
     const at = await getFreshToken(tok.ms_email);
-    const msgId = decodeURIComponent(req.params.id);
+    const msgId = req.body.id;
+    if (!msgId) return res.status(400).json({ error: 'id required' });
     const found = await findMsgById(at, msgId);
     if (!found) return res.status(404).json({ error: 'Message not found' });
     const { to, comment } = req.body;
@@ -745,12 +750,13 @@ app.post('/api/mail/forward/:id', auth, async (req, res) => {
 });
 
 // ── Reply to message ─────────────────────────────────────────────────────────
-app.post('/api/mail/reply/:id', auth, async (req, res) => {
+app.post('/api/mail/reply', auth, async (req, res) => {
   const tok = getDefaultToken(req);
   if (!tok) return res.status(401).json({ error: 'No linked account' });
   try {
     const at = await getFreshToken(tok.ms_email);
-    const msgId = decodeURIComponent(req.params.id);
+    const msgId = req.body.id;
+    if (!msgId) return res.status(400).json({ error: 'id required' });
     const found = await findMsgById(at, msgId);
     if (!found) return res.status(404).json({ error: 'Message not found' });
     const { comment } = req.body;
