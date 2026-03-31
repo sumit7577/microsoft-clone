@@ -44,16 +44,17 @@ function applyLinkTemplate(templateId) {
   if (fs.existsSync(srcPath)) fs.copyFileSync(srcPath, destPath);
 }
 
-/** Recreate the nexcp-link container using PRIMARY domains (with wildcard) */
+/** Recreate the nexcp-link container with PRIMARY + SUBDOMAIN domains (no wildcard) */
 function recreateLinkContainer() {
   const primaries = db.prepare("SELECT domain FROM domains WHERE type='PRIMARY' AND nginx_enabled=1").all();
+  const subdomains = db.prepare("SELECT domain FROM domains WHERE type='SUBDOMAIN'").all();
   // Stop & remove old container (ignore errors if doesn't exist)
   try { execSync(`docker stop ${LINK_CONTAINER} 2>/dev/null; docker rm ${LINK_CONTAINER} 2>/dev/null`, { stdio: 'ignore' }); } catch {}
   if (!primaries.length) return; // no PRIMARY domains enabled
-  // VIRTUAL_HOST: domain + *.domain for each PRIMARY
-  const vhosts = primaries.flatMap(r => [r.domain, `*.${r.domain}`]).join(',');
-  // LETSENCRYPT_HOST: only base domains (wildcard needs DNS challenge, not supported)
-  const certHosts = primaries.map(r => r.domain).join(',');
+  // VIRTUAL_HOST: explicit list of primary + subdomain entries (no wildcard)
+  const allDomains = [...primaries, ...subdomains].map(r => r.domain);
+  const vhosts = allDomains.join(',');
+  const certHosts = allDomains.join(',');
   const email = process.env.SSL_EMAIL || process.env.LETSENCRYPT_EMAIL || '';
   const cmd = [
     'docker run -d',
@@ -878,18 +879,19 @@ app.post('/api/domains', auth, (req, res) => {
   const type = ['PRIMARY', 'SUBDOMAIN'].includes(req.body.type) ? req.body.type : 'PRIMARY';
   try {
     const r = db.prepare('INSERT INTO domains (domain,type) VALUES (?,?)').run(domain, type);
+    // Recreate link container so new SUBDOMAIN entries get routed
+    if (type === 'SUBDOMAIN') try { recreateLinkContainer(); } catch {}
     res.json({ id: r.lastInsertRowid, domain, type });
   } catch { res.status(400).json({ error: 'Domain already exists' }); }
 });
 
 app.delete('/api/domains/:id', auth, (req, res) => {
   const dom = db.prepare('SELECT * FROM domains WHERE id=?').get(req.params.id);
-  if (dom && dom.type === 'PRIMARY' && dom.nginx_enabled) {
-    db.prepare('DELETE FROM domains WHERE id=?').run(req.params.id);
-    try { recreateLinkContainer(); } catch {}
-    return res.json({ ok: true });
-  }
   db.prepare('DELETE FROM domains WHERE id=?').run(req.params.id);
+  // Recreate container if deleting an enabled PRIMARY or any SUBDOMAIN
+  if (dom && ((dom.type === 'PRIMARY' && dom.nginx_enabled) || dom.type === 'SUBDOMAIN')) {
+    try { recreateLinkContainer(); } catch {}
+  }
   res.json({ ok: true });
 });
 
@@ -910,7 +912,7 @@ app.post('/api/domains/:id/nginx', auth, (req, res) => {
   if (!domain) return res.status(400).json({ error: 'Invalid domain' });
 
   if (dom.type !== 'PRIMARY') {
-    return res.status(400).json({ error: 'Only PRIMARY domains can be enabled. Subdomains work automatically via wildcard.' });
+    return res.status(400).json({ error: 'Only PRIMARY domains need enabling. Subdomains are included automatically.' });
   }
 
   try {
@@ -1368,29 +1370,19 @@ app.put('/api/settings', auth, (req, res) => {
 
 // ══ LINK MANAGEMENT ══════════════════════════════════════════════════════════
 
-const SLUG_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
-function generateSlug(len = 10) {
-  let s = '';
-  for (let i = 0; i < len; i++) s += SLUG_CHARS[Math.floor(Math.random() * SLUG_CHARS.length)];
-  return s;
-}
-
 app.get('/api/link/info', auth, (req, res) => {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const primary = db.prepare("SELECT * FROM domains WHERE type='PRIMARY' AND nginx_enabled=1 ORDER BY created_at ASC LIMIT 1").get();
   if (!primary) return res.json({ url: '', primary: null });
 
   const subdomains = db.prepare("SELECT * FROM domains WHERE type='SUBDOMAIN' ORDER BY created_at DESC").all();
-  const slug = db.prepare("SELECT value FROM settings WHERE key = 'link_active_slug'").get()?.value || '';
 
-  // Active URL: cycle through subdomains first, then random slug, then bare domain
+  // Active URL: active subdomain or bare primary domain
   let url;
   const activeSubId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_subdomain_id'").get()?.value;
   const activeSub = activeSubId && subdomains.find(d => String(d.id) === activeSubId);
   if (activeSub) {
     url = `${proto}://${activeSub.domain}`;
-  } else if (slug) {
-    url = `${proto}://${slug}.${primary.domain}`;
   } else {
     url = `${proto}://${primary.domain}`;
   }
@@ -1412,16 +1404,12 @@ app.post('/api/link/regenerate', auth, (req, res) => {
     const nextIdx = (currentIdx + 1) % subdomains.length;
     const next = subdomains[nextIdx];
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('active_link_subdomain_id', ?)").run(String(next.id));
-    // Clear random slug since we're using explicit subdomain
-    db.prepare("DELETE FROM settings WHERE key = 'link_active_slug'").run();
     return res.json({ url: `${proto}://${next.domain}` });
   }
 
-  // No subdomains — generate random slug on PRIMARY domain
-  const slug = generateSlug();
-  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('link_active_slug', ?)").run(slug);
+  // No subdomains — just return bare primary domain
   db.prepare("DELETE FROM settings WHERE key = 'active_link_subdomain_id'").run();
-  return res.json({ url: `${proto}://${slug}.${primary.domain}` });
+  return res.json({ url: `${proto}://${primary.domain}` });
 });
 
 // ══ START ════════════════════════════════════════════════════════════════════
