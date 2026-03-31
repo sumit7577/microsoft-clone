@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { mailApi } from '../../api/client';
@@ -45,6 +45,8 @@ export default function MailLayout() {
   const [sweepFolder, setSweepFolder] = useState('');
   const [undoStack, setUndoStack] = useState([]);
   const [undoToast, setUndoToast] = useState(null);
+  const [moveDropdownPos, setMoveDropdownPos] = useState({ top: 0, left: 0 });
+  const moveRef = useRef(null);
 
   // Close move dropdown on outside click (deferred so opening click doesn't close it)
   useEffect(() => {
@@ -281,22 +283,30 @@ export default function MailLayout() {
           </svg>
           Sweep
         </button>
-        <button className="ol-tb-btn ol-tb-chevron" style={{ position: 'relative' }} onClick={(e) => { e.stopPropagation(); if (selectedMsg) setShowMoveDropdown(!showMoveDropdown); }}>
+        <button ref={moveRef} className="ol-tb-btn ol-tb-chevron" onClick={(e) => {
+          e.stopPropagation();
+          if (!selectedMsg) return;
+          if (!showMoveDropdown && moveRef.current) {
+            const r = moveRef.current.getBoundingClientRect();
+            setMoveDropdownPos({ top: r.bottom + 2, left: r.left });
+          }
+          setShowMoveDropdown(!showMoveDropdown);
+        }}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M3 4l5 4-5 4"/><path d="M9 3h5v10H9"/>
           </svg>
           Move to
           <svg className="chevron" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
-          {showMoveDropdown && (
-            <div className="ol-dropdown" onClick={e => e.stopPropagation()}>
-              {folders.map(f => (
-                <div key={f.id} className="ol-dropdown-item" onClick={() => moveMut.mutate({ id: selectedMsg, folderId: f.id })}>
-                  {f.displayName}
-                </div>
-              ))}
-            </div>
-          )}
         </button>
+        {showMoveDropdown && (
+          <div className="ol-dropdown" style={{ top: moveDropdownPos.top, left: moveDropdownPos.left }} onClick={e => e.stopPropagation()}>
+            {folders.map(f => (
+              <div key={f.id} className="ol-dropdown-item" onClick={() => moveMut.mutate({ id: selectedMsg, folderId: f.id })}>
+                {f.displayName}
+              </div>
+            ))}
+          </div>
+        )}
         <button className="ol-tb-btn ol-tb-chevron">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6"/>
