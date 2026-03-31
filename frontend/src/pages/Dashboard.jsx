@@ -1,12 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { dashboardApi, linkApi } from '../api/client';
+import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../lib/utils';
 import WorldMap from '../components/ui/WorldMap';
 import { useState, useEffect, useMemo } from 'react';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: dashboardApi.stats,
@@ -22,11 +23,6 @@ export default function Dashboard() {
   const { data: linkInfo } = useQuery({
     queryKey: ['link-info'],
     queryFn: linkApi.info,
-  });
-
-  const regenMut = useMutation({
-    mutationFn: linkApi.regenerate,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['link-info'] }),
   });
 
   const [copied, setCopied] = useState(false);
@@ -155,11 +151,10 @@ export default function Dashboard() {
           {copied && <span style={{ color: '#10b981', fontSize: '12px' }}>Copied!</span>}
           <button
             className="regen-btn"
-            onClick={() => regenMut.mutate()}
-            disabled={regenMut.isPending}
-            title="Generate new link URL"
+            onClick={() => navigate('/admin/domains')}
+            title="Manage link domains"
           >
-            {regenMut.isPending ? '↻' : '⟳'} Regenerate
+            Manage Domains
           </button>
         </div>
         <div className="dash-uptime">{uptimeText}</div>

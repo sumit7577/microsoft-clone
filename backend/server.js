@@ -1419,20 +1419,11 @@ app.put('/api/settings', auth, (req, res) => {
 // ══ LINK MANAGEMENT ══════════════════════════════════════════════════════════
 
 app.get('/api/link/info', auth, (req, res) => {
-  const slug = db.prepare("SELECT value FROM settings WHERE key = 'link_slug'").get()?.value || '';
-  const updatedAt = db.prepare("SELECT value FROM settings WHERE key = 'link_slug_updated_at'").get()?.value || '';
+  const domains = db.prepare("SELECT * FROM domains WHERE type = 'LINK' ORDER BY created_at DESC").all();
   const proto = req.headers['x-forwarded-proto'] || 'https';
-  const baseDomain = LINK_BASE_DOMAIN;
-  const url = (slug && baseDomain) ? `${proto}://${slug}.${baseDomain}` : '';
-  res.json({ slug, url, updated_at: updatedAt, base_domain: baseDomain });
-});
-
-app.post('/api/link/regenerate', auth, (req, res) => {
-  const slug = rotateLinkSlug();
-  const proto = req.headers['x-forwarded-proto'] || 'https';
-  const baseDomain = LINK_BASE_DOMAIN;
-  const url = baseDomain ? `${proto}://${slug}.${baseDomain}` : '';
-  res.json({ slug, url, updated_at: new Date().toISOString(), base_domain: baseDomain });
+  const active = domains.find(d => d.nginx_enabled) || domains[0];
+  const url = active ? `${proto}://${active.domain}` : '';
+  res.json({ url, domains: domains.map(d => ({ id: d.id, domain: d.domain, nginx_enabled: d.nginx_enabled, url: `${proto}://${d.domain}` })) });
 });
 
 // ══ START ════════════════════════════════════════════════════════════════════
