@@ -154,6 +154,7 @@ export const domainsApi = {
   list: () => api.get('/domains'),
   create: (domain, type) => api.post('/domains', { domain, type }),
   del: (id) => api.del(`/domains/${id}`),
+  updateType: (id, type) => api.patch(`/domains/${id}`, { type }),
   enableNginx: (id) => api.post(`/domains/${id}/nginx`),
   enableSsl: (id, email) => api.post(`/domains/${id}/ssl`, { email }),
   sslCheck: (id) => api.get(`/domains/${id}/ssl-check`),

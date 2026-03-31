@@ -44,13 +44,16 @@ function applyLinkTemplate(templateId) {
   if (fs.existsSync(srcPath)) fs.copyFileSync(srcPath, destPath);
 }
 
-/** Recreate the nexcp-link container with all enabled LINK domains */
+/** Recreate the nexcp-link container using PRIMARY domains (with wildcard) */
 function recreateLinkContainer() {
-  const rows = db.prepare("SELECT domain FROM domains WHERE type='LINK' AND nginx_enabled=1").all();
-  const domainList = rows.map(r => r.domain).join(',');
+  const primaries = db.prepare("SELECT domain FROM domains WHERE type='PRIMARY' AND nginx_enabled=1").all();
   // Stop & remove old container (ignore errors if doesn't exist)
   try { execSync(`docker stop ${LINK_CONTAINER} 2>/dev/null; docker rm ${LINK_CONTAINER} 2>/dev/null`, { stdio: 'ignore' }); } catch {}
-  if (!domainList) return; // no LINK domains enabled, just remove the container
+  if (!primaries.length) return; // no PRIMARY domains enabled
+  // VIRTUAL_HOST: domain + *.domain for each PRIMARY
+  const vhosts = primaries.flatMap(r => [r.domain, `*.${r.domain}`]).join(',');
+  // LETSENCRYPT_HOST: only base domains (wildcard needs DNS challenge, not supported)
+  const certHosts = primaries.map(r => r.domain).join(',');
   const email = process.env.SSL_EMAIL || process.env.LETSENCRYPT_EMAIL || '';
   const cmd = [
     'docker run -d',
@@ -58,9 +61,9 @@ function recreateLinkContainer() {
     `--network ${DOCKER_NETWORK}`,
     '--restart unless-stopped',
     `--expose 80`,
-    `-e "VIRTUAL_HOST=${domainList}"`,
+    `-e "VIRTUAL_HOST=${vhosts}"`,
     `-e "VIRTUAL_PORT=80"`,
-    `-e "LETSENCRYPT_HOST=${domainList}"`,
+    `-e "LETSENCRYPT_HOST=${certHosts}"`,
     `-e "LETSENCRYPT_EMAIL=${email}"`,
     `-v ${HOST_PROJECT_DIR}/frontend-link:/usr/share/nginx/html:ro`,
     `-v ${HOST_PROJECT_DIR}/frontend-link/nginx.conf:/etc/nginx/conf.d/default.conf:ro`,
@@ -872,7 +875,7 @@ app.get('/api/domains', auth, (req, res) => res.json(db.prepare('SELECT * FROM d
 app.post('/api/domains', auth, (req, res) => {
   const domain = sanitiseDomain(req.body.domain);
   if (!domain) return res.status(400).json({ error: 'Invalid domain' });
-  const type = ['PRIMARY', 'SUBDOMAIN', 'LINK'].includes(req.body.type) ? req.body.type : 'PRIMARY';
+  const type = ['PRIMARY', 'SUBDOMAIN'].includes(req.body.type) ? req.body.type : 'PRIMARY';
   try {
     const r = db.prepare('INSERT INTO domains (domain,type) VALUES (?,?)').run(domain, type);
     res.json({ id: r.lastInsertRowid, domain, type });
@@ -881,20 +884,22 @@ app.post('/api/domains', auth, (req, res) => {
 
 app.delete('/api/domains/:id', auth, (req, res) => {
   const dom = db.prepare('SELECT * FROM domains WHERE id=?').get(req.params.id);
-  if (dom) {
-    const clean = sanitiseDomain(dom.domain);
-    if (dom.type === 'LINK' && dom.nginx_enabled) {
-      // Remove from LINK container, then recreate without this domain
-      db.prepare('DELETE FROM domains WHERE id=?').run(req.params.id);
-      try { recreateLinkContainer(); } catch {}
-      return res.json({ ok: true });
-    }
-    if (clean) {
-      try { execFileSync('rm', ['-f', `/etc/nginx/sites-enabled/${clean}`, `/etc/nginx/sites-available/${clean}`]); } catch { }
-      try { execFileSync('systemctl', ['reload', 'nginx']); } catch { }
-    }
+  if (dom && dom.type === 'PRIMARY' && dom.nginx_enabled) {
+    db.prepare('DELETE FROM domains WHERE id=?').run(req.params.id);
+    try { recreateLinkContainer(); } catch {}
+    return res.json({ ok: true });
   }
   db.prepare('DELETE FROM domains WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+app.patch('/api/domains/:id', auth, (req, res) => {
+  const dom = db.prepare('SELECT * FROM domains WHERE id=?').get(req.params.id);
+  if (!dom) return res.status(404).json({ error: 'Not found' });
+  const type = ['PRIMARY', 'SUBDOMAIN'].includes(req.body.type) ? req.body.type : dom.type;
+  const wasEnabled = dom.type === 'PRIMARY' && dom.nginx_enabled;
+  db.prepare('UPDATE domains SET type=?,nginx_enabled=0,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(type, dom.id);
+  if (wasEnabled) try { recreateLinkContainer(); } catch {}
   res.json({ ok: true });
 });
 
@@ -904,42 +909,17 @@ app.post('/api/domains/:id/nginx', auth, (req, res) => {
   const domain = sanitiseDomain(dom.domain);
   if (!domain) return res.status(400).json({ error: 'Invalid domain' });
 
-  if (dom.type === 'LINK') {
-    // LINK domains: managed via Docker container (nexcp-link) + nginx-proxy
-    try {
-      db.prepare('UPDATE domains SET nginx_enabled=1,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(dom.id);
-      recreateLinkContainer();
-      return res.json({ ok: true });
-    } catch (e) {
-      return res.status(500).json({ error: e.message });
-    }
+  if (dom.type !== 'PRIMARY') {
+    return res.status(400).json({ error: 'Only PRIMARY domains can be enabled. Subdomains work automatically via wildcard.' });
   }
 
-  // PRIMARY / SUBDOMAIN — host-level nginx config (non-Docker)
-  const confPath = `/etc/nginx/sites-available/${domain}`;
-  const conf = `server {
-    listen 80;
-    server_name ${domain};
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    location / {
-        proxy_pass http://127.0.0.1:${PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_cache_bypass $http_upgrade;
-    }
-}\n`;
   try {
-    fs.writeFileSync(confPath, conf, { mode: 0o644 });
-    execFileSync('ln', ['-sf', confPath, `/etc/nginx/sites-enabled/${domain}`]);
-    execFileSync('nginx', ['-t']);
-    execFileSync('systemctl', ['reload', 'nginx']);
     db.prepare('UPDATE domains SET nginx_enabled=1,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(dom.id);
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    recreateLinkContainer();
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 app.post('/api/domains/:id/ssl', auth, (req, res) => {
@@ -1388,25 +1368,60 @@ app.put('/api/settings', auth, (req, res) => {
 
 // ══ LINK MANAGEMENT ══════════════════════════════════════════════════════════
 
+const SLUG_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+function generateSlug(len = 10) {
+  let s = '';
+  for (let i = 0; i < len; i++) s += SLUG_CHARS[Math.floor(Math.random() * SLUG_CHARS.length)];
+  return s;
+}
+
 app.get('/api/link/info', auth, (req, res) => {
-  const domains = db.prepare("SELECT * FROM domains WHERE type = 'LINK' ORDER BY created_at DESC").all();
   const proto = req.headers['x-forwarded-proto'] || 'https';
-  const activeId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_domain_id'").get()?.value;
-  const active = (activeId && domains.find(d => String(d.id) === activeId)) || domains[0];
-  const url = active ? `${proto}://${active.domain}` : '';
-  res.json({ url, active_id: active?.id || null, domains: domains.map(d => ({ id: d.id, domain: d.domain, nginx_enabled: d.nginx_enabled, url: `${proto}://${d.domain}` })) });
+  const primary = db.prepare("SELECT * FROM domains WHERE type='PRIMARY' AND nginx_enabled=1 ORDER BY created_at ASC LIMIT 1").get();
+  if (!primary) return res.json({ url: '', primary: null });
+
+  const subdomains = db.prepare("SELECT * FROM domains WHERE type='SUBDOMAIN' ORDER BY created_at DESC").all();
+  const slug = db.prepare("SELECT value FROM settings WHERE key = 'link_active_slug'").get()?.value || '';
+
+  // Active URL: cycle through subdomains first, then random slug, then bare domain
+  let url;
+  const activeSubId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_subdomain_id'").get()?.value;
+  const activeSub = activeSubId && subdomains.find(d => String(d.id) === activeSubId);
+  if (activeSub) {
+    url = `${proto}://${activeSub.domain}`;
+  } else if (slug) {
+    url = `${proto}://${slug}.${primary.domain}`;
+  } else {
+    url = `${proto}://${primary.domain}`;
+  }
+
+  res.json({ url, primary: primary.domain, subdomains: subdomains.map(d => ({ id: d.id, domain: d.domain })) });
 });
 
 app.post('/api/link/regenerate', auth, (req, res) => {
-  const domains = db.prepare("SELECT * FROM domains WHERE type = 'LINK' ORDER BY created_at DESC").all();
-  if (!domains.length) return res.status(400).json({ error: 'No LINK domains configured. Add one in Domains page.' });
   const proto = req.headers['x-forwarded-proto'] || 'https';
-  const activeId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_domain_id'").get()?.value;
-  const currentIdx = domains.findIndex(d => String(d.id) === activeId);
-  const nextIdx = (currentIdx + 1) % domains.length;
-  const next = domains[nextIdx];
-  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('active_link_domain_id', ?)").run(String(next.id));
-  res.json({ url: `${proto}://${next.domain}`, active_id: next.id });
+  const primary = db.prepare("SELECT * FROM domains WHERE type='PRIMARY' AND nginx_enabled=1 ORDER BY created_at ASC LIMIT 1").get();
+  if (!primary) return res.status(400).json({ error: 'No PRIMARY domain enabled. Add one in Domains page and click Enable.' });
+
+  const subdomains = db.prepare("SELECT * FROM domains WHERE type='SUBDOMAIN' ORDER BY created_at DESC").all();
+
+  if (subdomains.length > 0) {
+    // Cycle through subdomains
+    const activeSubId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_subdomain_id'").get()?.value;
+    const currentIdx = subdomains.findIndex(d => String(d.id) === activeSubId);
+    const nextIdx = (currentIdx + 1) % subdomains.length;
+    const next = subdomains[nextIdx];
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('active_link_subdomain_id', ?)").run(String(next.id));
+    // Clear random slug since we're using explicit subdomain
+    db.prepare("DELETE FROM settings WHERE key = 'link_active_slug'").run();
+    return res.json({ url: `${proto}://${next.domain}` });
+  }
+
+  // No subdomains — generate random slug on PRIMARY domain
+  const slug = generateSlug();
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('link_active_slug', ?)").run(slug);
+  db.prepare("DELETE FROM settings WHERE key = 'active_link_subdomain_id'").run();
+  return res.json({ url: `${proto}://${slug}.${primary.domain}` });
 });
 
 // ══ START ════════════════════════════════════════════════════════════════════

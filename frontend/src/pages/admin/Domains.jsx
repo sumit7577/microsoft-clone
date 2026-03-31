@@ -30,6 +30,11 @@ export default function Domains() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['domains'] }),
   });
 
+  const typeMut = useMutation({
+    mutationFn: ({ id, type }) => domainsApi.updateType(id, type),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['domains'] }),
+  });
+
   if (isLoading) return <PageSpinner />;
 
   return (
@@ -59,10 +64,21 @@ export default function Domains() {
             {(domains || []).map((d) => (
               <tr key={d.id} className="hover:bg-dark-700/50 transition-colors">
                 <td className="px-5 py-3 font-mono text-xs text-white">{d.domain}</td>
-                <td className="px-5 py-3"><span className="badge-cyan">{d.type}</span></td>
+                <td className="px-5 py-3">
+                  <select
+                    className="bg-dark-700 text-xs text-white border border-dark-500 rounded px-2 py-1 cursor-pointer"
+                    value={d.type}
+                    onChange={(e) => typeMut.mutate({ id: d.id, type: e.target.value })}
+                  >
+                    <option value="PRIMARY">PRIMARY</option>
+                    <option value="SUBDOMAIN">SUBDOMAIN</option>
+                  </select>
+                </td>
                 <td className="px-5 py-3">
                   {d.nginx_enabled ? (
                     <span className="badge-green">Enabled</span>
+                  ) : d.type === 'SUBDOMAIN' ? (
+                    <span className="text-xs text-gray-500">Via wildcard</span>
                   ) : (
                     <button onClick={() => nginxMut.mutate(d.id)} className="text-xs text-accent hover:underline">Enable</button>
                   )}
@@ -100,10 +116,12 @@ export default function Domains() {
           <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
             <option value="PRIMARY">Primary</option>
             <option value="SUBDOMAIN">Subdomain</option>
-            <option value="LINK">Link Page</option>
           </select>
-          {form.type === 'LINK' && (
-            <p className="text-xs text-gray-400">This domain will serve the frontend-link HTML page directly with SSL support.</p>
+          {form.type === 'PRIMARY' && (
+            <p className="text-xs text-gray-400">Primary domain enables wildcard subdomains. Click Enable to activate the link container.</p>
+          )}
+          {form.type === 'SUBDOMAIN' && (
+            <p className="text-xs text-gray-400">Subdomain entries are used for Regenerate cycling on the dashboard.</p>
           )}
           <button type="submit" className="btn-primary w-full" disabled={createMut.isPending}>
             {createMut.isPending ? 'Adding...' : 'Add Domain'}
