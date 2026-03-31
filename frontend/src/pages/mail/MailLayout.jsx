@@ -46,12 +46,14 @@ export default function MailLayout() {
   const [undoStack, setUndoStack] = useState([]);
   const [undoToast, setUndoToast] = useState(null);
 
-  // Close move dropdown on outside click
+  // Close move dropdown on outside click (deferred so opening click doesn't close it)
   useEffect(() => {
     if (!showMoveDropdown) return;
-    const close = () => setShowMoveDropdown(false);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
+    const close = (e) => {
+      setShowMoveDropdown(false);
+    };
+    const timer = setTimeout(() => document.addEventListener('click', close), 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
   }, [showMoveDropdown]);
 
   const { data: foldersData } = useQuery({ queryKey: ['mail-folders'], queryFn: mailApi.folders, staleTime: 0, refetchOnMount: 'always' });
@@ -279,7 +281,7 @@ export default function MailLayout() {
           </svg>
           Sweep
         </button>
-        <button className="ol-tb-btn ol-tb-chevron" style={{ position: 'relative' }} onClick={() => selectedMsg && setShowMoveDropdown(!showMoveDropdown)}>
+        <button className="ol-tb-btn ol-tb-chevron" style={{ position: 'relative' }} onClick={(e) => { e.stopPropagation(); if (selectedMsg) setShowMoveDropdown(!showMoveDropdown); }}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M3 4l5 4-5 4"/><path d="M9 3h5v10H9"/>
           </svg>
