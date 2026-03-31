@@ -559,8 +559,17 @@ app.post('/api/mail/delete', auth, async (req, res) => {
     if (!msgId) return res.status(400).json({ error: 'id required' });
     const found = await findMsgById(at, msgId);
     if (!found) return res.status(404).json({ error: 'Message not found' });
-    const r = await graphPost(`/v1.0/me/messages/${encodeURIComponent(found.id)}/move`, at, { destinationId: 'deleteditems' });
-    if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Delete failed' });
+
+    // Check if message is already in Deleted Items — if so, permanently delete
+    const msgDetail = await graphGet(`/v1.0/me/messages/${encodeURIComponent(found.id)}?$select=parentFolderId`, at);
+    const deletedFolder = await graphGet('/v1.0/me/mailFolders/deleteditems?$select=id', at);
+    if (msgDetail.body?.parentFolderId === deletedFolder.body?.id) {
+      const r = await graphDelete(`/v1.0/me/messages/${encodeURIComponent(found.id)}`, at);
+      if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Permanent delete failed' });
+    } else {
+      const r = await graphPost(`/v1.0/me/messages/${encodeURIComponent(found.id)}/move`, at, { destinationId: 'deleteditems' });
+      if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Delete failed' });
+    }
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
