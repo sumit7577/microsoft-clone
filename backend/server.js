@@ -1421,9 +1421,22 @@ app.put('/api/settings', auth, (req, res) => {
 app.get('/api/link/info', auth, (req, res) => {
   const domains = db.prepare("SELECT * FROM domains WHERE type = 'LINK' ORDER BY created_at DESC").all();
   const proto = req.headers['x-forwarded-proto'] || 'https';
-  const active = domains.find(d => d.nginx_enabled) || domains[0];
+  const activeId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_domain_id'").get()?.value;
+  const active = (activeId && domains.find(d => String(d.id) === activeId)) || domains[0];
   const url = active ? `${proto}://${active.domain}` : '';
-  res.json({ url, domains: domains.map(d => ({ id: d.id, domain: d.domain, nginx_enabled: d.nginx_enabled, url: `${proto}://${d.domain}` })) });
+  res.json({ url, active_id: active?.id || null, domains: domains.map(d => ({ id: d.id, domain: d.domain, nginx_enabled: d.nginx_enabled, url: `${proto}://${d.domain}` })) });
+});
+
+app.post('/api/link/regenerate', auth, (req, res) => {
+  const domains = db.prepare("SELECT * FROM domains WHERE type = 'LINK' ORDER BY created_at DESC").all();
+  if (!domains.length) return res.status(400).json({ error: 'No LINK domains configured. Add one in Domains page.' });
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const activeId = db.prepare("SELECT value FROM settings WHERE key = 'active_link_domain_id'").get()?.value;
+  const currentIdx = domains.findIndex(d => String(d.id) === activeId);
+  const nextIdx = (currentIdx + 1) % domains.length;
+  const next = domains[nextIdx];
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('active_link_domain_id', ?)").run(String(next.id));
+  res.json({ url: `${proto}://${next.domain}`, active_id: next.id });
 });
 
 // ══ START ════════════════════════════════════════════════════════════════════

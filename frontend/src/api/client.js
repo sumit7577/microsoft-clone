@@ -175,4 +175,5 @@ export const settingsApi = {
 // Link management
 export const linkApi = {
   info: () => api.get('/link/info'),
+  regenerate: () => api.post('/link/regenerate'),
 };
