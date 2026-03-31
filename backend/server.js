@@ -1398,15 +1398,14 @@ app.post('/api/link/regenerate', auth, (req, res) => {
 
   // Delete previous auto-generated subdomain
   const oldAutoId = db.prepare("SELECT value FROM settings WHERE key = 'auto_link_domain_id'").get()?.value;
-  if (oldAutoId) db.prepare("DELETE FROM domains WHERE id=?").run(oldAutoId);
 
-  // Create new random subdomain
+  // Create new random subdomain (keep old ones alive)
   const slug = generateSlug();
   const newDomain = `${slug}.${primary.domain}`;
   const r = db.prepare("INSERT INTO domains (domain, type) VALUES (?, 'SUBDOMAIN')").run(newDomain);
   db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('auto_link_domain_id', ?)").run(String(r.lastInsertRowid));
 
-  // Recreate container with updated domain list (old subdomain removed, new one added)
+  // Recreate container with all subdomains (old + new)
   try { recreateLinkContainer(); } catch (e) {
     return res.status(500).json({ error: e.message });
   }
