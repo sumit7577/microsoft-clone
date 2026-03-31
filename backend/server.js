@@ -821,6 +821,47 @@ app.delete('/api/mail/rules/:ruleId', auth, async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+// ── Sweep: bulk move/delete messages from a sender ───────────────────────────
+app.post('/api/mail/sweep', auth, async (req, res) => {
+  const tok = getDefaultToken(req);
+  if (!tok) return res.status(401).json({ error: 'No linked account' });
+  try {
+    const at = await getFreshToken(tok.ms_email);
+    const { sender, action, folderId } = req.body;
+    if (!sender) return res.status(400).json({ error: 'sender required' });
+
+    // Find all messages from this sender in inbox
+    const filter = encodeURIComponent(`from/emailAddress/address eq '${sender.replace(/'/g, "''")}'`);
+    const r = await graphGet(
+      `/v1.0/me/mailFolders/inbox/messages?$filter=${filter}&$top=100&$select=id`,
+      at
+    );
+    if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Search failed' });
+    const msgs = r.body?.value || [];
+    if (msgs.length === 0) return res.json({ ok: true, movedIds: [], count: 0 });
+
+    const destId = action === 'move' && folderId ? folderId : 'deleteditems';
+    const movedIds = [];
+    for (const m of msgs) {
+      const mr = await graphPost(`/v1.0/me/messages/${encodeURIComponent(m.id)}/move`, at, { destinationId: destId });
+      if (mr.status < 400) movedIds.push(m.id);
+    }
+
+    // If action is 'rule', also create a rule to auto-delete future messages
+    if (action === 'rule') {
+      await graphPost('/v1.0/me/mailFolders/inbox/messageRules', at, {
+        displayName: `Sweep: delete from ${sender}`,
+        sequence: 1,
+        isEnabled: true,
+        conditions: { senderContains: [sender] },
+        actions: { delete: true, stopProcessingRules: true }
+      });
+    }
+
+    res.json({ ok: true, movedIds, count: movedIds.length });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 // ══ ONENOTE ══════════════════════════════════════════════════════════════════
 
 app.get('/api/notes/notebooks', auth, async (req, res) => {

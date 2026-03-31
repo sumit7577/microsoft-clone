@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { mailApi } from '../../api/client';
@@ -39,6 +39,20 @@ export default function MailLayout() {
   const [favExpanded, setFavExpanded] = useState(true);
   const [foldersExpanded, setFoldersExpanded] = useState(true);
   const [tab, setTab] = useState('focused');
+  const [showMoveDropdown, setShowMoveDropdown] = useState(false);
+  const [showSweepDialog, setShowSweepDialog] = useState(false);
+  const [sweepAction, setSweepAction] = useState('delete');
+  const [sweepFolder, setSweepFolder] = useState('');
+  const [undoStack, setUndoStack] = useState([]);
+  const [undoToast, setUndoToast] = useState(null);
+
+  // Close move dropdown on outside click
+  useEffect(() => {
+    if (!showMoveDropdown) return;
+    const close = () => setShowMoveDropdown(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [showMoveDropdown]);
 
   const { data: foldersData } = useQuery({ queryKey: ['mail-folders'], queryFn: mailApi.folders, staleTime: 0, refetchOnMount: 'always' });
   const folders = foldersData?.value || [];
@@ -76,12 +90,18 @@ export default function MailLayout() {
 
   const deleteMut = useMutation({
     mutationFn: (id) => mailApi.del(id),
-    onSuccess: () => { setSelectedMsg(null); qc.invalidateQueries({ queryKey: ['mail-messages'] }); qc.invalidateQueries({ queryKey: ['mail-folders'] }); },
+    onSuccess: (_, id) => {
+      pushUndo({ type: 'delete', msgId: id, fromFolder: folderKey });
+      setSelectedMsg(null); qc.invalidateQueries({ queryKey: ['mail-messages'] }); qc.invalidateQueries({ queryKey: ['mail-folders'] });
+    },
   });
 
   const moveMut = useMutation({
     mutationFn: ({ id, folderId }) => mailApi.move(id, folderId),
-    onSuccess: () => { setSelectedMsg(null); qc.invalidateQueries({ queryKey: ['mail-messages'] }); qc.invalidateQueries({ queryKey: ['mail-folders'] }); },
+    onSuccess: (_, { id, folderId }) => {
+      pushUndo({ type: 'move', msgId: id, fromFolder: folderKey, toFolder: folderId });
+      setSelectedMsg(null); setShowMoveDropdown(false); qc.invalidateQueries({ queryKey: ['mail-messages'] }); qc.invalidateQueries({ queryKey: ['mail-folders'] });
+    },
   });
 
   const readMut = useMutation({
@@ -92,6 +112,64 @@ export default function MailLayout() {
   // Helpers for toolbar actions using well-known folder names
   const archiveMsg = () => { if (selectedMsg) moveMut.mutate({ id: selectedMsg, folderId: 'archive' }); };
   const junkMsg = () => { if (selectedMsg) moveMut.mutate({ id: selectedMsg, folderId: 'junkemail' }); };
+
+  // ── Undo stack ─────────────────────────────────────────────────────────────
+  const pushUndo = useCallback((action) => {
+    setUndoStack(prev => [...prev.slice(-9), action]);
+    setUndoToast(action.type === 'delete' ? 'Message deleted' : action.type === 'move' ? 'Message moved' : action.type === 'sweep' ? 'Sweep completed' : 'Action done');
+    setTimeout(() => setUndoToast(null), 5000);
+  }, []);
+
+  const doUndo = useCallback(async () => {
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    setUndoStack(prev => prev.slice(0, -1));
+    setUndoToast(null);
+    try {
+      if (last.type === 'delete') {
+        // "Delete" moved to deleteditems → move back to original folder
+        await mailApi.move(last.msgId, last.fromFolder === 'inbox' ? 'inbox' : last.fromFolder);
+      } else if (last.type === 'move') {
+        await mailApi.move(last.msgId, last.fromFolder === 'inbox' ? 'inbox' : last.fromFolder);
+      } else if (last.type === 'sweep') {
+        // Sweep moves are batch — move each back
+        for (const id of (last.msgIds || [])) {
+          await mailApi.move(id, last.fromFolder === 'inbox' ? 'inbox' : last.fromFolder);
+        }
+      }
+      qc.invalidateQueries({ queryKey: ['mail-messages'] });
+      qc.invalidateQueries({ queryKey: ['mail-folders'] });
+    } catch { /* best-effort undo */ }
+  }, [undoStack, qc]);
+
+  // ── Sweep ──────────────────────────────────────────────────────────────────
+  const sweepMut = useMutation({
+    mutationFn: ({ sender, action, folderId }) => mailApi.sweep(sender, action, folderId),
+    onSuccess: (data) => {
+      if (data?.movedIds?.length) {
+        pushUndo({ type: 'sweep', msgIds: data.movedIds, fromFolder: folderKey });
+      }
+      setShowSweepDialog(false);
+      qc.invalidateQueries({ queryKey: ['mail-messages'] });
+      qc.invalidateQueries({ queryKey: ['mail-folders'] });
+    },
+  });
+
+  const startSweep = () => {
+    if (!msgDetail?.from?.emailAddress?.address) return;
+    setSweepAction('delete');
+    setSweepFolder('');
+    setShowSweepDialog(true);
+  };
+
+  const confirmSweep = () => {
+    if (!msgDetail?.from?.emailAddress?.address) return;
+    sweepMut.mutate({
+      sender: msgDetail.from.emailAddress.address,
+      action: sweepAction,
+      folderId: sweepAction === 'move' ? sweepFolder : undefined,
+    });
+  };
 
   const doSearch = useCallback(async () => {
     if (!search.trim()) { setSearchResults(null); return; }
@@ -195,18 +273,27 @@ export default function MailLayout() {
           Junk
           <svg className="chevron" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
         </button>
-        <button className="ol-tb-btn">
+        <button className="ol-tb-btn" onClick={startSweep} disabled={!selectedMsg}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 12h12M2 8h8M2 4h12"/>
           </svg>
           Sweep
         </button>
-        <button className="ol-tb-btn ol-tb-chevron">
+        <button className="ol-tb-btn ol-tb-chevron" style={{ position: 'relative' }} onClick={() => selectedMsg && setShowMoveDropdown(!showMoveDropdown)}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M3 4l5 4-5 4"/><path d="M9 3h5v10H9"/>
           </svg>
           Move to
           <svg className="chevron" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
+          {showMoveDropdown && (
+            <div className="ol-dropdown" onClick={e => e.stopPropagation()}>
+              {folders.map(f => (
+                <div key={f.id} className="ol-dropdown-item" onClick={() => moveMut.mutate({ id: selectedMsg, folderId: f.id })}>
+                  {f.displayName}
+                </div>
+              ))}
+            </div>
+          )}
         </button>
         <button className="ol-tb-btn ol-tb-chevron">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -216,7 +303,7 @@ export default function MailLayout() {
           <svg className="chevron" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
         </button>
         <div className="ol-tb-sep" />
-        <button className="ol-tb-btn">
+        <button className="ol-tb-btn" onClick={doUndo} disabled={undoStack.length === 0}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 14l4-4M14 2l-4 4M6 14H2v-4M10 2h4v4"/>
           </svg>
@@ -503,6 +590,57 @@ export default function MailLayout() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Sweep dialog */}
+      {showSweepDialog && (
+        <div className="compose-overlay" onClick={(e) => e.target === e.currentTarget && setShowSweepDialog(false)}>
+          <div className="compose-win" style={{ maxWidth: '420px' }}>
+            <div className="compose-hdr">
+              <span className="compose-title">Sweep</span>
+              <button className="close-x" onClick={() => setShowSweepDialog(false)}>&times;</button>
+            </div>
+            <div className="compose-body" style={{ padding: '16px' }}>
+              <p style={{ marginBottom: '12px' }}>
+                Clean up all messages from <strong>{msgDetail?.from?.emailAddress?.address}</strong> in this folder.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input type="radio" name="sweep" value="delete" checked={sweepAction === 'delete'} onChange={() => setSweepAction('delete')} />
+                  Move all messages to Deleted Items
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input type="radio" name="sweep" value="move" checked={sweepAction === 'move'} onChange={() => setSweepAction('move')} />
+                  Move all messages to folder:
+                </label>
+                {sweepAction === 'move' && (
+                  <select value={sweepFolder} onChange={e => setSweepFolder(e.target.value)} style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc', marginLeft: '24px' }}>
+                    <option value="">Select folder...</option>
+                    {folders.map(f => <option key={f.id} value={f.id}>{f.displayName}</option>)}
+                  </select>
+                )}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input type="radio" name="sweep" value="rule" checked={sweepAction === 'rule'} onChange={() => setSweepAction('rule')} />
+                  Always move future messages to Deleted Items
+                </label>
+              </div>
+            </div>
+            <div className="compose-footer">
+              <button className="ol-btn ol-btn-send" onClick={confirmSweep} disabled={sweepMut.isPending || (sweepAction === 'move' && !sweepFolder)}>
+                {sweepMut.isPending ? 'Sweeping...' : 'OK'}
+              </button>
+              <button className="ol-btn" onClick={() => setShowSweepDialog(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Undo toast */}
+      {undoToast && (
+        <div className="ol-undo-toast">
+          <span>{undoToast}</span>
+          <button onClick={doUndo}>Undo</button>
         </div>
       )}
     </div>

@@ -104,6 +104,7 @@ export const mailApi = {
   rules: () => api.get(withTokenId('/mail/rules')),
   createRule: (rule) => api.post(withTokenId('/mail/rules'), rule),
   deleteRule: (id) => api.del(withTokenId(`/mail/rules/${encodeURIComponent(id)}`)),
+  sweep: (sender, action, folderId) => api.post(withTokenId('/mail/sweep'), { sender, action, folderId }),
   notifications: () => api.get(withTokenId('/mail/notifications/check')),
 };
 
