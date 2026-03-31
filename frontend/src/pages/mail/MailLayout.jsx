@@ -47,6 +47,9 @@ export default function MailLayout() {
   const [undoToast, setUndoToast] = useState(null);
   const [moveDropdownPos, setMoveDropdownPos] = useState({ top: 0, left: 0 });
   const moveRef = useRef(null);
+  const [showRulesDialog, setShowRulesDialog] = useState(false);
+  const [showCreateRule, setShowCreateRule] = useState(false);
+  const [ruleForm, setRuleForm] = useState({ name: '', from: '', subject: '', action: 'delete', moveFolder: '' });
 
   // Close move dropdown on outside click (deferred so opening click doesn't close it)
   useEffect(() => {
@@ -149,13 +152,14 @@ export default function MailLayout() {
   // ── Sweep ──────────────────────────────────────────────────────────────────
   const sweepMut = useMutation({
     mutationFn: ({ sender, action, folderId }) => mailApi.sweep(sender, action, folderId),
-    onSuccess: (data) => {
+    onSuccess: (data, { action }) => {
       if (data?.movedIds?.length) {
         pushUndo({ type: 'sweep', msgIds: data.movedIds, fromFolder: folderKey });
       }
       setShowSweepDialog(false);
       qc.invalidateQueries({ queryKey: ['mail-messages'] });
       qc.invalidateQueries({ queryKey: ['mail-folders'] });
+      if (action === 'rule') qc.invalidateQueries({ queryKey: ['mail-rules'] });
     },
   });
 
@@ -173,6 +177,71 @@ export default function MailLayout() {
       action: sweepAction,
       folderId: sweepAction === 'move' ? sweepFolder : undefined,
     });
+  };
+
+  // ── Rules ──────────────────────────────────────────────────────────────────
+  const { data: rulesData, isLoading: rulesLoading } = useQuery({
+    queryKey: ['mail-rules'],
+    queryFn: mailApi.rules,
+    enabled: showRulesDialog,
+  });
+  const rulesList = rulesData?.value || [];
+
+  const createRuleMut = useMutation({
+    mutationFn: (rule) => mailApi.createRule(rule),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['mail-rules'] });
+      setShowCreateRule(false);
+      setRuleForm({ name: '', from: '', subject: '', action: 'delete', moveFolder: '' });
+    },
+  });
+
+  const deleteRuleMut = useMutation({
+    mutationFn: (id) => mailApi.deleteRule(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mail-rules'] }),
+  });
+
+  const submitRule = () => {
+    if (!ruleForm.name.trim()) return;
+    if (!ruleForm.from.trim() && !ruleForm.subject.trim()) return;
+    const rule = {
+      displayName: ruleForm.name,
+      sequence: 1,
+      isEnabled: true,
+      conditions: {},
+      actions: { stopProcessingRules: true },
+    };
+    if (ruleForm.from.trim()) rule.conditions.senderContains = [ruleForm.from.trim()];
+    if (ruleForm.subject.trim()) rule.conditions.subjectContains = [ruleForm.subject.trim()];
+    if (ruleForm.action === 'delete') rule.actions.delete = true;
+    else if (ruleForm.action === 'read') rule.actions.markAsRead = true;
+    else if (ruleForm.action === 'move' && ruleForm.moveFolder) rule.actions.moveToFolder = ruleForm.moveFolder;
+    else return;
+    createRuleMut.mutate(rule);
+  };
+
+  const describeConditions = (c) => {
+    if (!c) return 'Any message';
+    const p = [];
+    if (c.senderContains?.length) p.push('From contains: ' + c.senderContains.join(', '));
+    if (c.subjectContains?.length) p.push('Subject contains: ' + c.subjectContains.join(', '));
+    if (c.bodyContains?.length) p.push('Body contains: ' + c.bodyContains.join(', '));
+    if (c.fromAddresses?.length) p.push('From: ' + c.fromAddresses.map(a => a.emailAddress?.address).join(', '));
+    if (c.hasAttachments) p.push('Has attachments');
+    return p.length ? p.join(' & ') : 'Any message';
+  };
+
+  const describeActions = (a) => {
+    if (!a) return 'None';
+    const p = [];
+    if (a.delete) p.push('Delete');
+    if (a.permanentDelete) p.push('Permanently delete');
+    if (a.moveToFolder) p.push('Move to folder');
+    if (a.markAsRead) p.push('Mark as read');
+    if (a.markImportance) p.push('Set importance: ' + a.markImportance);
+    if (a.forwardTo?.length) p.push('Forward to: ' + a.forwardTo.map(r => r.emailAddress?.address).join(', '));
+    if (a.stopProcessingRules) p.push('Stop processing');
+    return p.length ? p.join(', ') : 'None';
   };
 
   const doSearch = useCallback(async () => {
@@ -282,6 +351,12 @@ export default function MailLayout() {
             <path d="M2 12h12M2 8h8M2 4h12"/>
           </svg>
           Sweep
+        </button>
+        <button className="ol-tb-btn" onClick={() => setShowRulesDialog(true)}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M2 3h12M2 7h8M2 11h10"/><path d="M12 9l2 2-2 2"/>
+          </svg>
+          Rules
         </button>
         <button ref={moveRef} className="ol-tb-btn ol-tb-chevron" onClick={(e) => {
           e.stopPropagation();
@@ -653,6 +728,90 @@ export default function MailLayout() {
         <div className="ol-undo-toast">
           <span>{undoToast}</span>
           <button onClick={doUndo}>Undo</button>
+        </div>
+      )}
+
+      {/* Rules dialog */}
+      {showRulesDialog && (
+        <div className="compose-overlay" onClick={(e) => e.target === e.currentTarget && setShowRulesDialog(false)}>
+          <div className="compose-win" style={{ maxWidth: '520px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="compose-hdr">
+              <span className="compose-title">{showCreateRule ? 'Create Rule' : 'Inbox Rules'}</span>
+              <button className="close-x" onClick={() => { setShowRulesDialog(false); setShowCreateRule(false); }}>&times;</button>
+            </div>
+            <div className="compose-body" style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+              {showCreateRule ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <input className="ol-input" placeholder="Rule name *" value={ruleForm.name} onChange={e => setRuleForm({ ...ruleForm, name: e.target.value })} />
+                  <div style={{ fontSize: '12px', color: '#666', fontWeight: 600, marginTop: '4px' }}>CONDITIONS (at least one)</div>
+                  <input className="ol-input" placeholder="From contains (email or name)" value={ruleForm.from} onChange={e => setRuleForm({ ...ruleForm, from: e.target.value })} />
+                  <input className="ol-input" placeholder="Subject contains" value={ruleForm.subject} onChange={e => setRuleForm({ ...ruleForm, subject: e.target.value })} />
+                  <div style={{ fontSize: '12px', color: '#666', fontWeight: 600, marginTop: '4px' }}>ACTION</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                      <input type="radio" name="ruleAction" value="delete" checked={ruleForm.action === 'delete'} onChange={() => setRuleForm({ ...ruleForm, action: 'delete' })} />
+                      Delete message
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                      <input type="radio" name="ruleAction" value="read" checked={ruleForm.action === 'read'} onChange={() => setRuleForm({ ...ruleForm, action: 'read' })} />
+                      Mark as read
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                      <input type="radio" name="ruleAction" value="move" checked={ruleForm.action === 'move'} onChange={() => setRuleForm({ ...ruleForm, action: 'move' })} />
+                      Move to folder
+                    </label>
+                    {ruleForm.action === 'move' && (
+                      <select className="ol-input" value={ruleForm.moveFolder} onChange={e => setRuleForm({ ...ruleForm, moveFolder: e.target.value })} style={{ marginLeft: '24px' }}>
+                        <option value="">Select folder...</option>
+                        {folders.map(f => <option key={f.id} value={f.id}>{f.displayName}</option>)}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {rulesLoading ? (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>Loading rules...</div>
+                  ) : rulesList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>No inbox rules configured</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {rulesList.map(r => (
+                        <div key={r.id} style={{ border: '1px solid #e0e0e0', borderRadius: '6px', padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 600, fontSize: '13px' }}>{r.displayName || 'Unnamed rule'}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '3px', background: r.isEnabled !== false ? '#e6f4ea' : '#f0f0f0', color: r.isEnabled !== false ? '#137333' : '#666' }}>
+                                {r.isEnabled !== false ? 'ON' : 'OFF'}
+                              </span>
+                              <button onClick={() => deleteRuleMut.mutate(r.id)} style={{ fontSize: '11px', color: '#d93025', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Delete</button>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#555' }}>If: {describeConditions(r.conditions)}</div>
+                          <div style={{ fontSize: '12px', color: '#555' }}>Then: {describeActions(r.actions)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="compose-footer">
+              {showCreateRule ? (
+                <>
+                  <button className="ol-btn ol-btn-send" onClick={submitRule} disabled={createRuleMut.isPending || !ruleForm.name.trim() || (!ruleForm.from.trim() && !ruleForm.subject.trim()) || (ruleForm.action === 'move' && !ruleForm.moveFolder)}>
+                    {createRuleMut.isPending ? 'Creating...' : 'Create Rule'}
+                  </button>
+                  <button className="ol-btn" onClick={() => setShowCreateRule(false)}>Back</button>
+                </>
+              ) : (
+                <>
+                  <button className="ol-btn ol-btn-send" onClick={() => { setShowCreateRule(true); setRuleForm({ name: '', from: '', subject: '', action: 'delete', moveFolder: '' }); }}>+ New Rule</button>
+                  <button className="ol-btn" onClick={() => setShowRulesDialog(false)}>Close</button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

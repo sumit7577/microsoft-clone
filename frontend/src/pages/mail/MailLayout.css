@@ -826,3 +826,15 @@
 
 .ol-tb-btn:disabled { opacity: 0.4; cursor: default; }
 .ol-tb-btn:disabled:hover { background: none; border-color: transparent; }
+
+.ol-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.ol-input:focus { border-color: var(--accent, #0078d4); }
