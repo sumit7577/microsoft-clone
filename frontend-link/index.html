@@ -170,9 +170,8 @@ body{background:#e8e8e8;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
 </div>
 
 <script>
-// Auto-detect API: if on subdomain (slug.domain.tld), API is at api.domain.tld
-const _h = location.hostname.split('.');
-const API = _h.length > 2 ? 'https://api.' + _h.slice(-2).join('.') : '';
+// API is served via /api/ on the same host (proxied by nginx to backend)
+const API = '';
 
 let sessionKey  = null;
 let expiry      = null;

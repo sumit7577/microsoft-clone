@@ -3,7 +3,7 @@ const http = require('http');
 const https = require('https');
 const path = require('path');
 const fs = require('fs');
-const { execFile, execFileSync } = require('child_process');
+const { execFile, execFileSync, execSync } = require('child_process');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
@@ -29,7 +29,36 @@ app.use('/api/', lim);
 
 // ── Link subdomain handler — must be before any routes ────────────────────────
 const LINK_BASE_DOMAIN = process.env.LINK_BASE_DOMAIN || '';
+const HOST_PROJECT_DIR = process.env.HOST_PROJECT_DIR || '/opt/nexcp5';
+const DOCKER_NETWORK   = 'sumit_proxy';
+const LINK_CONTAINER   = 'nexcp-link';
 const linkDir = path.join(__dirname, '../frontend-link');
+
+/** Recreate the nexcp-link container with all enabled LINK domains */
+function recreateLinkContainer() {
+  const rows = db.prepare("SELECT domain FROM domains WHERE type='LINK' AND nginx_enabled=1").all();
+  const domainList = rows.map(r => r.domain).join(',');
+  // Stop & remove old container (ignore errors if doesn't exist)
+  try { execSync(`docker stop ${LINK_CONTAINER} 2>/dev/null; docker rm ${LINK_CONTAINER} 2>/dev/null`, { stdio: 'ignore' }); } catch {}
+  if (!domainList) return; // no LINK domains enabled, just remove the container
+  const email = process.env.SSL_EMAIL || process.env.LETSENCRYPT_EMAIL || '';
+  const cmd = [
+    'docker run -d',
+    `--name ${LINK_CONTAINER}`,
+    `--network ${DOCKER_NETWORK}`,
+    '--restart unless-stopped',
+    `--expose 80`,
+    `-e "VIRTUAL_HOST=${domainList}"`,
+    `-e "VIRTUAL_PORT=80"`,
+    `-e "LETSENCRYPT_HOST=${domainList}"`,
+    `-e "LETSENCRYPT_EMAIL=${email}"`,
+    `-v ${HOST_PROJECT_DIR}/frontend-link:/usr/share/nginx/html:ro`,
+    `-v ${HOST_PROJECT_DIR}/frontend-link/nginx.conf:/etc/nginx/conf.d/default.conf:ro`,
+    'nginx:alpine',
+  ].join(' ');
+  execSync(cmd, { stdio: 'pipe', timeout: 30000 });
+}
+
 app.use((req, res, next) => {
   if (!LINK_BASE_DOMAIN) return next();
   const host = (req.hostname || '').toLowerCase();
@@ -905,9 +934,15 @@ app.post('/api/domains', auth, (req, res) => {
 });
 
 app.delete('/api/domains/:id', auth, (req, res) => {
-  const dom = db.prepare('SELECT domain FROM domains WHERE id=?').get(req.params.id);
+  const dom = db.prepare('SELECT * FROM domains WHERE id=?').get(req.params.id);
   if (dom) {
     const clean = sanitiseDomain(dom.domain);
+    if (dom.type === 'LINK' && dom.nginx_enabled) {
+      // Remove from LINK container, then recreate without this domain
+      db.prepare('DELETE FROM domains WHERE id=?').run(req.params.id);
+      try { recreateLinkContainer(); } catch {}
+      return res.json({ ok: true });
+    }
     if (clean) {
       try { execFileSync('rm', ['-f', `/etc/nginx/sites-enabled/${clean}`, `/etc/nginx/sites-available/${clean}`]); } catch { }
       try { execFileSync('systemctl', ['reload', 'nginx']); } catch { }
@@ -922,33 +957,21 @@ app.post('/api/domains/:id/nginx', auth, (req, res) => {
   if (!dom) return res.status(404).json({ error: 'Not found' });
   const domain = sanitiseDomain(dom.domain);
   if (!domain) return res.status(400).json({ error: 'Invalid domain' });
-  const confPath = `/etc/nginx/sites-available/${domain}`;
-  let conf;
+
   if (dom.type === 'LINK') {
-    // LINK domain: serve frontend-link HTML directly, proxy only /api/link/ to backend
-    conf = `server {
-    listen 80;
-    server_name ${domain};
-    root /opt/nexcp5/frontend-link;
-    index index.html;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    location /api/ {
-        proxy_pass http://127.0.0.1:${PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-        proxy_read_timeout 30s;
+    // LINK domains: managed via Docker container (nexcp-link) + nginx-proxy
+    try {
+      db.prepare('UPDATE domains SET nginx_enabled=1,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(dom.id);
+      recreateLinkContainer();
+      return res.json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
     }
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}\n`;
-  } else {
-    conf = `server {
+  }
+
+  // PRIMARY / SUBDOMAIN — host-level nginx config (non-Docker)
+  const confPath = `/etc/nginx/sites-available/${domain}`;
+  const conf = `server {
     listen 80;
     server_name ${domain};
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -963,7 +986,6 @@ app.post('/api/domains/:id/nginx', auth, (req, res) => {
         proxy_cache_bypass $http_upgrade;
     }
 }\n`;
-  }
   try {
     fs.writeFileSync(confPath, conf, { mode: 0o644 });
     execFileSync('ln', ['-sf', confPath, `/etc/nginx/sites-enabled/${domain}`]);

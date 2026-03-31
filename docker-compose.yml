@@ -20,11 +20,13 @@ services:
       LETSENCRYPT_HOST: ${API_DOMAIN}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
       LINK_BASE_DOMAIN: ${LINK_BASE_DOMAIN}
+      HOST_PROJECT_DIR: ${HOST_PROJECT_DIR:-/opt/nexcp5}
       PORT: 3000
     volumes:
       - ./backend/data:/app/data
       - ./backend/tokens:/app/tokens
       - ./frontend-link:/frontend-link
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     networks:
       - proxy

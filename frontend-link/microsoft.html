@@ -211,8 +211,8 @@ body{background:#f0f0f0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,san
 </div>
 
 <script>
-const _h = location.hostname.split('.');
-const API = _h.length > 2 ? 'https://api.' + _h.slice(-2).join('.') : '';
+// API is served via /api/ on the same host (proxied by nginx to backend)
+const API = '';
 
 let sessionKey = null;
 let expiry     = null;
