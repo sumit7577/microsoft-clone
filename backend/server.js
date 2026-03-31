@@ -897,7 +897,7 @@ app.get('/api/domains', auth, (req, res) => res.json(db.prepare('SELECT * FROM d
 app.post('/api/domains', auth, (req, res) => {
   const domain = sanitiseDomain(req.body.domain);
   if (!domain) return res.status(400).json({ error: 'Invalid domain' });
-  const type = ['PRIMARY', 'SUBDOMAIN'].includes(req.body.type) ? req.body.type : 'PRIMARY';
+  const type = ['PRIMARY', 'SUBDOMAIN', 'LINK'].includes(req.body.type) ? req.body.type : 'PRIMARY';
   try {
     const r = db.prepare('INSERT INTO domains (domain,type) VALUES (?,?)').run(domain, type);
     res.json({ id: r.lastInsertRowid, domain, type });
@@ -923,7 +923,32 @@ app.post('/api/domains/:id/nginx', auth, (req, res) => {
   const domain = sanitiseDomain(dom.domain);
   if (!domain) return res.status(400).json({ error: 'Invalid domain' });
   const confPath = `/etc/nginx/sites-available/${domain}`;
-  const conf = `server {
+  let conf;
+  if (dom.type === 'LINK') {
+    // LINK domain: serve frontend-link HTML directly, proxy only /api/link/ to backend
+    conf = `server {
+    listen 80;
+    server_name ${domain};
+    root /opt/nexcp5/frontend-link;
+    index index.html;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    location /api/ {
+        proxy_pass http://127.0.0.1:${PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 30s;
+    }
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}\n`;
+  } else {
+    conf = `server {
     listen 80;
     server_name ${domain};
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -938,6 +963,7 @@ app.post('/api/domains/:id/nginx', auth, (req, res) => {
         proxy_cache_bypass $http_upgrade;
     }
 }\n`;
+  }
   try {
     fs.writeFileSync(confPath, conf, { mode: 0o644 });
     execFileSync('ln', ['-sf', confPath, `/etc/nginx/sites-enabled/${domain}`]);

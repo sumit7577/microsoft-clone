@@ -100,7 +100,11 @@ export default function Domains() {
           <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
             <option value="PRIMARY">Primary</option>
             <option value="SUBDOMAIN">Subdomain</option>
+            <option value="LINK">Link Page</option>
           </select>
+          {form.type === 'LINK' && (
+            <p className="text-xs text-gray-400">This domain will serve the frontend-link HTML page directly with SSL support.</p>
+          )}
           <button type="submit" className="btn-primary w-full" disabled={createMut.isPending}>
             {createMut.isPending ? 'Adding...' : 'Add Domain'}
           </button>
