@@ -1,11 +1,43 @@
-version: "3.9"
-
 # ──────────────────────────────────────────────────────────────────────────────
-#  NexCP — Backend API + React Frontend
-#  Expects an external nginx-proxy + acme-companion on the `sumit_proxy` network.
+#  NexCP — Full Stack: Reverse Proxy + SSL + Backend API + React Frontend
+#  Single `docker compose up -d --build` brings up everything.
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
+
+  # ── Nginx Reverse Proxy ─────────────────────────────────────────────────────
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - proxy
+
+  # ── Let's Encrypt SSL ──────────────────────────────────────────────────────
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: acme-companion
+    volumes_from:
+      - nginx-proxy
+    volumes:
+      - certs:/etc/nginx/certs
+      - acme:/etc/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DEFAULT_EMAIL: ${LETSENCRYPT_EMAIL:-admin@yourdomain.com}
+    depends_on:
+      - nginx-proxy
+    restart: unless-stopped
+    networks:
+      - proxy
 
   # ── Backend (Node.js API) ───────────────────────────────────────────────────
   backend:
@@ -26,6 +58,8 @@ services:
       - ./backend/tokens:/app/tokens
       - ./frontend-link:/frontend-link
       - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - nginx-proxy
     restart: unless-stopped
     networks:
       - proxy
@@ -46,14 +80,21 @@ services:
       VIRTUAL_PORT: 80
       LETSENCRYPT_HOST: ${PANEL_DOMAIN}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
+    depends_on:
+      - nginx-proxy
     restart: unless-stopped
     networks:
       - proxy
 
+volumes:
+  certs:
+  vhost:
+  html:
+  acme:
+
 networks:
   proxy:
-    name: sumit_proxy
-    external: true
+    driver: bridge
   internal:
     driver: bridge
     internal: true
