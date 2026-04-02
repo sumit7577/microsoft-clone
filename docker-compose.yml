@@ -52,6 +52,7 @@ services:
       LETSENCRYPT_HOST: ${API_DOMAIN}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
       HOST_PROJECT_DIR: ${HOST_PROJECT_DIR:-/opt/nexcp5}
+      DOCKER_NETWORK: nexcp_proxy
       PORT: 3000
     volumes:
       - ./backend/data:/app/data
@@ -94,6 +95,7 @@ volumes:
 
 networks:
   proxy:
+    name: nexcp_proxy
     driver: bridge
   internal:
     driver: bridge

@@ -29,7 +29,7 @@ app.use('/api/', lim);
 
 // ── Link container management ─────────────────────────────────────────────────
 const HOST_PROJECT_DIR = process.env.HOST_PROJECT_DIR || '/opt/nexcp5';
-const DOCKER_NETWORK   = 'sumit_proxy';
+const DOCKER_NETWORK   = process.env.DOCKER_NETWORK || 'nexcp_proxy';
 const LINK_CONTAINER   = 'nexcp-link';
 const linkDir = path.join(__dirname, '../frontend-link');
 
