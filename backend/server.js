@@ -548,13 +548,14 @@ app.get('/api/mail/attachment', auth, async (req, res) => {
   if (!tok) return res.status(401).json({ error: 'No linked account' });
   try {
     const at = await getFreshToken(tok.ms_email);
-    const { msgId, attId } = req.query;
+    const { msgId, attId, view } = req.query;
     if (!msgId || !attId) return res.status(400).json({ error: 'msgId and attId required' });
     const r = await graphGet(`/v1.0/me/messages/${encodeURIComponent(msgId)}/attachments/${encodeURIComponent(attId)}`, at);
     if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Failed' });
     const att = r.body;
     const buf = Buffer.from(att.contentBytes, 'base64');
-    res.setHeader('Content-Disposition', `attachment; filename="${(att.name || 'file').replace(/"/g, '_')}"`);
+    const disposition = view === 'inline' ? 'inline' : `attachment; filename="${(att.name || 'file').replace(/"/g, '_')}"`;
+    res.setHeader('Content-Disposition', disposition);
     res.setHeader('Content-Type', att.contentType || 'application/octet-stream');
     res.setHeader('Content-Length', buf.length);
     res.send(buf);

@@ -125,6 +125,15 @@ export const mailApi = {
     a.href = url; a.download = filename || 'attachment'; a.click();
     URL.revokeObjectURL(url);
   },
+  viewAttachment: async (msgId, attId) => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}${withTokenId(`/mail/attachment?msgId=${encodeURIComponent(msgId)}&attId=${encodeURIComponent(attId)}&view=inline`)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('View failed');
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
   rules: () => api.get(withTokenId('/mail/rules')),
   createRule: (rule) => api.post(withTokenId('/mail/rules'), rule),
   deleteRule: (id) => api.del(withTokenId(`/mail/rules/${encodeURIComponent(id)}`)),

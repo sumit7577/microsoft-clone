@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { mailApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -54,6 +54,7 @@ export default function MailLayout() {
   const [composeReplyId, setComposeReplyId] = useState(null);
   const [composeFiles, setComposeFiles] = useState([]);
   const fileInputRef = useRef(null);
+  const [previewAtt, setPreviewAtt] = useState(null); // { msgId, attId, name, contentType }
 
   // Close move dropdown on outside click (deferred so opening click doesn't close it)
   useEffect(() => {
@@ -69,14 +70,19 @@ export default function MailLayout() {
   const folders = foldersData?.value || [];
 
   const folderKey = selectedFolder || 'inbox';
-  const { data: msgsData, isLoading: msgsLoading } = useQuery({
+  const PAGE_SIZE = 25;
+  const { data: msgsPages, isLoading: msgsLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['mail-messages', folderKey],
-    queryFn: () => selectedFolder ? mailApi.folder(selectedFolder) : mailApi.inbox(),
+    queryFn: ({ pageParam = 0 }) => selectedFolder ? mailApi.folder(selectedFolder, PAGE_SIZE, pageParam) : mailApi.inbox(PAGE_SIZE, pageParam),
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage?.value?.length === PAGE_SIZE) return allPages.reduce((n, p) => n + (p?.value?.length || 0), 0);
+      return undefined;
+    },
     enabled: !searchResults,
     staleTime: 0,
     refetchOnMount: 'always',
   });
-  const messages = searchResults || msgsData?.value || [];
+  const messages = searchResults || (msgsPages?.pages || []).flatMap(p => p?.value || []);
 
   const groupedMessages = useMemo(() => {
     const groups = [];
@@ -647,6 +653,16 @@ export default function MailLayout() {
                 );
               })
             )}
+            {hasNextPage && !searchResults && (
+              <button
+                className="ol-btn"
+                style={{ width: '100%', padding: '10px', margin: '8px 0', fontSize: '13px' }}
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+              >
+                {isFetchingNextPage ? 'Loading...' : 'Load older messages'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -699,20 +715,41 @@ export default function MailLayout() {
               <div className="read-attachments" style={{ padding: '12px 20px', borderTop: '1px solid #edebe9' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Attachments ({attachmentsList.length})</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {attachmentsList.map(att => (
-                    <button
-                      key={att.id}
-                      className="ol-btn"
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
-                      onClick={() => mailApi.downloadAttachment(selectedMsg, att.id, att.name)}
-                    >
-                      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M8 2v9M5 8l3 3 3-3M3 12h10"/>
-                      </svg>
-                      <span>{att.name}</span>
-                      <span style={{ color: '#605e5c' }}>({(att.size / 1024).toFixed(0)} KB)</span>
-                    </button>
-                  ))}
+                  {attachmentsList.map(att => {
+                    const ct = (att.contentType || '').toLowerCase();
+                    const canPreview = ct.startsWith('image/') || ct === 'application/pdf';
+                    return (
+                      <div key={att.id} style={{ display: 'flex', gap: '4px' }}>
+                        {canPreview && (
+                          <button
+                            className="ol-btn"
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
+                            onClick={async () => {
+                              const blobUrl = await mailApi.viewAttachment(selectedMsg, att.id);
+                              setPreviewAtt({ url: blobUrl, name: att.name, contentType: att.contentType });
+                            }}
+                          >
+                            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <circle cx="8" cy="8" r="3"/><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/>
+                            </svg>
+                            <span>{att.name}</span>
+                          </button>
+                        )}
+                        <button
+                          className="ol-btn"
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
+                          onClick={() => mailApi.downloadAttachment(selectedMsg, att.id, att.name)}
+                          title={canPreview ? 'Download' : att.name}
+                        >
+                          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M8 2v9M5 8l3 3 3-3M3 12h10"/>
+                          </svg>
+                          {!canPreview && <span>{att.name}</span>}
+                          <span style={{ color: '#605e5c' }}>({(att.size / 1024).toFixed(0)} KB)</span>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -947,6 +984,27 @@ export default function MailLayout() {
                   <button className="ol-btn" onClick={() => setShowRulesDialog(false)}>Close</button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attachment preview modal */}
+      {previewAtt && (
+        <div className="compose-overlay" style={{ zIndex: 1100 }} onClick={(e) => {
+          if (e.target === e.currentTarget) { URL.revokeObjectURL(previewAtt.url); setPreviewAtt(null); }
+        }}>
+          <div style={{ background: '#fff', borderRadius: '8px', maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.3)' }}>
+            <div className="compose-hdr">
+              <span className="compose-title">{previewAtt.name}</span>
+              <button className="close-x" onClick={() => { URL.revokeObjectURL(previewAtt.url); setPreviewAtt(null); }}>&times;</button>
+            </div>
+            <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', minHeight: '300px' }}>
+              {(previewAtt.contentType || '').startsWith('image/') ? (
+                <img src={previewAtt.url} alt={previewAtt.name} style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
+              ) : (previewAtt.contentType || '') === 'application/pdf' ? (
+                <iframe src={previewAtt.url} title={previewAtt.name} style={{ width: '80vw', height: '80vh', border: 'none' }} />
+              ) : null}
             </div>
           </div>
         </div>
