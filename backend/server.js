@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const cors = require('cors');
+const multer = require('multer');
 const db = require('./database');
 const df = require('./device-flow');
 require('dotenv').config();
@@ -528,7 +529,42 @@ app.get('/api/mail/message', auth, async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-app.post('/api/mail/send', auth, async (req, res) => {
+// ── Attachments ────────────────────────────────────────────────────────────
+app.get('/api/mail/attachments', auth, async (req, res) => {
+  const tok = getDefaultToken(req);
+  if (!tok) return res.status(401).json({ error: 'No linked account' });
+  try {
+    const at = await getFreshToken(tok.ms_email);
+    const msgId = req.query.id;
+    if (!msgId) return res.status(400).json({ error: 'id required' });
+    const r = await graphGet(`/v1.0/me/messages/${encodeURIComponent(msgId)}/attachments?$select=id,name,contentType,size`, at);
+    if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Failed' });
+    res.json(r.body);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.get('/api/mail/attachment', auth, async (req, res) => {
+  const tok = getDefaultToken(req);
+  if (!tok) return res.status(401).json({ error: 'No linked account' });
+  try {
+    const at = await getFreshToken(tok.ms_email);
+    const { msgId, attId } = req.query;
+    if (!msgId || !attId) return res.status(400).json({ error: 'msgId and attId required' });
+    const r = await graphGet(`/v1.0/me/messages/${encodeURIComponent(msgId)}/attachments/${encodeURIComponent(attId)}`, at);
+    if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Failed' });
+    const att = r.body;
+    const buf = Buffer.from(att.contentBytes, 'base64');
+    res.setHeader('Content-Disposition', `attachment; filename="${(att.name || 'file').replace(/"/g, '_')}"`);
+    res.setHeader('Content-Type', att.contentType || 'application/octet-stream');
+    res.setHeader('Content-Length', buf.length);
+    res.send(buf);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// ── Send with optional attachments ─────────────────────────────────────────
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+
+app.post('/api/mail/send', auth, upload.array('attachments', 20), async (req, res) => {
   const tok = getDefaultToken(req);
   if (!tok) return res.status(401).json({ error: 'No linked account' });
   try {
@@ -540,7 +576,13 @@ app.post('/api/mail/send', auth, async (req, res) => {
         subject,
         body: { contentType: 'HTML', content: body || '' },
         toRecipients: to.split(',').map(a => ({ emailAddress: { address: a.trim() } })),
-        ccRecipients: cc ? cc.split(',').map(a => ({ emailAddress: { address: a.trim() } })) : []
+        ccRecipients: cc ? cc.split(',').map(a => ({ emailAddress: { address: a.trim() } })) : [],
+        attachments: (req.files || []).map(f => ({
+          '@odata.type': '#microsoft.graph.fileAttachment',
+          name: f.originalname,
+          contentType: f.mimetype,
+          contentBytes: f.buffer.toString('base64'),
+        }))
       },
       saveToSentItems: true
     };

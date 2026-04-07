@@ -91,7 +91,18 @@ export const mailApi = {
   inbox: (top = 25, skip = 0) => api.get(withTokenId(`/mail/inbox?top=${top}&skip=${skip}`)),
   folder: (id, top = 25, skip = 0) => api.get(withTokenId(`/mail/folder/${encodeURIComponent(id)}?top=${top}&skip=${skip}`)),
   message: (id) => api.get(withTokenId(`/mail/message?id=${encodeURIComponent(id)}`)),
-  send: (data) => api.post(withTokenId('/mail/send'), data),
+  send: (data) => {
+    if (data.attachments?.length) {
+      const fd = new FormData();
+      fd.append('to', data.to);
+      fd.append('cc', data.cc || '');
+      fd.append('subject', data.subject);
+      fd.append('body', data.body || '');
+      for (const f of data.attachments) fd.append('attachments', f);
+      return api.post(withTokenId('/mail/send'), fd);
+    }
+    return api.post(withTokenId('/mail/send'), data);
+  },
   del: (id) => api.post(withTokenId('/mail/delete'), { id }),
   move: (id, folderId) => api.post(withTokenId('/mail/move'), { id, folderId }),
   read: (id, isRead) => api.post(withTokenId('/mail/read'), { id, isRead }),
@@ -101,6 +112,19 @@ export const mailApi = {
   folders: () => api.get(withTokenId('/mail/folders')),
   createFolder: (name) => api.post(withTokenId('/mail/folders'), { displayName: name }),
   deleteFolder: (id) => api.del(withTokenId(`/mail/folders/${encodeURIComponent(id)}`)),
+  attachments: (id) => api.get(withTokenId(`/mail/attachments?id=${encodeURIComponent(id)}`)),
+  downloadAttachment: async (msgId, attId, filename) => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}${withTokenId(`/mail/attachment?msgId=${encodeURIComponent(msgId)}&attId=${encodeURIComponent(attId)}`)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Download failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename || 'attachment'; a.click();
+    URL.revokeObjectURL(url);
+  },
   rules: () => api.get(withTokenId('/mail/rules')),
   createRule: (rule) => api.post(withTokenId('/mail/rules'), rule),
   deleteRule: (id) => api.del(withTokenId(`/mail/rules/${encodeURIComponent(id)}`)),

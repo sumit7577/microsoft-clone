@@ -50,6 +50,10 @@ export default function MailLayout() {
   const [showRulesDialog, setShowRulesDialog] = useState(false);
   const [showCreateRule, setShowCreateRule] = useState(false);
   const [ruleForm, setRuleForm] = useState({ name: '', from: '', subject: '', action: 'delete', moveFolder: '' });
+  const [composeMode, setComposeMode] = useState('new'); // 'new' | 'reply' | 'forward'
+  const [composeReplyId, setComposeReplyId] = useState(null);
+  const [composeFiles, setComposeFiles] = useState([]);
+  const fileInputRef = useRef(null);
 
   // Close move dropdown on outside click (deferred so opening click doesn't close it)
   useEffect(() => {
@@ -95,6 +99,14 @@ export default function MailLayout() {
     staleTime: 0,
   });
 
+  const { data: attachmentsData } = useQuery({
+    queryKey: ['mail-attachments', selectedMsg],
+    queryFn: () => mailApi.attachments(selectedMsg),
+    enabled: !!selectedMsg && !!msgDetail?.hasAttachments,
+    staleTime: 0,
+  });
+  const attachmentsList = attachmentsData?.value || [];
+
   const deleteMut = useMutation({
     mutationFn: (id) => mailApi.del(id),
     onSuccess: (_, id) => {
@@ -115,6 +127,73 @@ export default function MailLayout() {
     mutationFn: ({ id, isRead }) => mailApi.read(id, isRead),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['mail-messages'] }),
   });
+
+  const replyMut = useMutation({
+    mutationFn: ({ id, comment }) => mailApi.reply(id, comment),
+    onSuccess: () => {
+      setShowCompose(false);
+      setComposeData({ to: '', cc: '', subject: '', body: '' });
+      setComposeMode('new');
+      setComposeReplyId(null);
+      qc.invalidateQueries({ queryKey: ['mail-messages'] });
+    },
+  });
+
+  const forwardMut = useMutation({
+    mutationFn: ({ id, to, comment }) => mailApi.forward(id, to, comment),
+    onSuccess: () => {
+      setShowCompose(false);
+      setComposeData({ to: '', cc: '', subject: '', body: '' });
+      setComposeMode('new');
+      setComposeReplyId(null);
+      qc.invalidateQueries({ queryKey: ['mail-messages'] });
+    },
+  });
+
+  const openReply = () => {
+    if (!msgDetail) return;
+    setComposeMode('reply');
+    setComposeReplyId(selectedMsg);
+    setComposeData({
+      to: msgDetail.from?.emailAddress?.address || '',
+      cc: '',
+      subject: `Re: ${(msgDetail.subject || '').replace(/^Re:\s*/i, '')}`,
+      body: '',
+    });
+    setComposeFiles([]);
+    setShowCompose(true);
+  };
+
+  const openReplyAll = () => {
+    if (!msgDetail) return;
+    const from = msgDetail.from?.emailAddress?.address || '';
+    const toAddrs = (msgDetail.toRecipients || []).map(r => r.emailAddress?.address).filter(a => a && a !== user?.email);
+    const ccAddrs = (msgDetail.ccRecipients || []).map(r => r.emailAddress?.address).filter(Boolean);
+    setComposeMode('reply');
+    setComposeReplyId(selectedMsg);
+    setComposeData({
+      to: [from, ...toAddrs].filter(Boolean).join('; '),
+      cc: ccAddrs.join('; '),
+      subject: `Re: ${(msgDetail.subject || '').replace(/^Re:\s*/i, '')}`,
+      body: '',
+    });
+    setComposeFiles([]);
+    setShowCompose(true);
+  };
+
+  const openForward = () => {
+    if (!msgDetail) return;
+    setComposeMode('forward');
+    setComposeReplyId(selectedMsg);
+    setComposeData({
+      to: '',
+      cc: '',
+      subject: `Fwd: ${(msgDetail.subject || '').replace(/^Fwd:\s*/i, '')}`,
+      body: '',
+    });
+    setComposeFiles([]);
+    setShowCompose(true);
+  };
 
   // Helpers for toolbar actions using well-known folder names
   const archiveMsg = () => { if (selectedMsg) moveMut.mutate({ id: selectedMsg, folderId: 'archive' }); };
@@ -254,10 +333,11 @@ export default function MailLayout() {
 
   const [composeData, setComposeData] = useState({ to: '', cc: '', subject: '', body: '' });
   const sendMut = useMutation({
-    mutationFn: () => mailApi.send(composeData),
+    mutationFn: () => mailApi.send({ ...composeData, attachments: composeFiles }),
     onSuccess: () => {
       setShowCompose(false);
       setComposeData({ to: '', cc: '', subject: '', body: '' });
+      setComposeFiles([]);
       qc.invalidateQueries({ queryKey: ['mail-messages'] });
     },
   });
@@ -320,7 +400,7 @@ export default function MailLayout() {
 
       {/* Toolbar */}
       <div className="outlook-toolbar">
-        <button className="ol-tb-btn ol-tb-btn-new" onClick={() => setShowCompose(true)}>
+        <button className="ol-tb-btn ol-tb-btn-new" onClick={() => { setComposeMode('new'); setComposeReplyId(null); setComposeFiles([]); setComposeData({ to: '', cc: '', subject: '', body: '' }); setShowCompose(true); }}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/>
           </svg>
@@ -357,6 +437,12 @@ export default function MailLayout() {
             <path d="M2 3h12M2 7h8M2 11h10"/><path d="M12 9l2 2-2 2"/>
           </svg>
           Rules
+        </button>
+        <button className="ol-tb-btn" onClick={() => selectedMsg && readMut.mutate({ id: selectedMsg, isRead: false })} disabled={!selectedMsg}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M1 4l7 5 7-5"/>
+          </svg>
+          Unread
         </button>
         <button ref={moveRef} className="ol-tb-btn ol-tb-chevron" onClick={(e) => {
           e.stopPropagation();
@@ -581,13 +667,13 @@ export default function MailLayout() {
                   <div className="read-sender-email">{msgDetail.from?.emailAddress?.address}</div>
                 </div>
                 <div className="read-sender-actions">
-                  <button className="ol-action-icon" title="Reply">
+                  <button className="ol-action-icon" title="Reply" onClick={openReply}>
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 3L2 7l4 4"/><path d="M2 7h8a4 4 0 014 4v1"/></svg>
                   </button>
-                  <button className="ol-action-icon" title="Reply All">
+                  <button className="ol-action-icon" title="Reply All" onClick={openReplyAll}>
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3L4 7l4 4"/><path d="M5 3L1 7l4 4"/><path d="M4 7h7a4 4 0 014 4v1"/></svg>
                   </button>
-                  <button className="ol-action-icon" title="Forward">
+                  <button className="ol-action-icon" title="Forward" onClick={openForward}>
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3l4 4-4 4"/><path d="M14 7H6a4 4 0 00-4 4v1"/></svg>
                   </button>
                   <button className="ol-action-icon" title="Delete" onClick={() => deleteMut.mutate(selectedMsg)}>
@@ -609,6 +695,27 @@ export default function MailLayout() {
                 <div className="read-body-content" dangerouslySetInnerHTML={{ __html: msgDetail.body?.content || '' }} />
               )}
             </div>
+            {attachmentsList.length > 0 && (
+              <div className="read-attachments" style={{ padding: '12px 20px', borderTop: '1px solid #edebe9' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Attachments ({attachmentsList.length})</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {attachmentsList.map(att => (
+                    <button
+                      key={att.id}
+                      className="ol-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
+                      onClick={() => mailApi.downloadAttachment(selectedMsg, att.id, att.name)}
+                    >
+                      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M8 2v9M5 8l3 3 3-3M3 12h10"/>
+                      </svg>
+                      <span>{att.name}</span>
+                      <span style={{ color: '#605e5c' }}>({(att.size / 1024).toFixed(0)} KB)</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="empty-state-outlook">
@@ -632,10 +739,19 @@ export default function MailLayout() {
         <div className="compose-overlay" onClick={(e) => e.target === e.currentTarget && setShowCompose(false)}>
           <div className="compose-win">
             <div className="compose-hdr">
-              <span className="compose-title">New Message</span>
-              <button className="close-x" onClick={() => setShowCompose(false)}>&times;</button>
+              <span className="compose-title">{composeMode === 'reply' ? 'Reply' : composeMode === 'forward' ? 'Forward' : 'New Message'}</span>
+              <button className="close-x" onClick={() => { setShowCompose(false); setComposeMode('new'); setComposeReplyId(null); setComposeFiles([]); }}>&times;</button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); sendMut.mutate(); }}>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (composeMode === 'reply') {
+                replyMut.mutate({ id: composeReplyId, comment: composeData.body });
+              } else if (composeMode === 'forward') {
+                forwardMut.mutate({ id: composeReplyId, to: composeData.to, comment: composeData.body });
+              } else {
+                sendMut.mutate();
+              }
+            }}>
               <div className="compose-body">
                 <div className="compose-field">
                   <label>To</label>
@@ -644,6 +760,7 @@ export default function MailLayout() {
                     value={composeData.to}
                     onChange={e => setComposeData({ ...composeData, to: e.target.value })}
                     required
+                    readOnly={composeMode === 'reply'}
                   />
                 </div>
                 <div className="compose-field">
@@ -660,6 +777,7 @@ export default function MailLayout() {
                     value={composeData.subject}
                     onChange={e => setComposeData({ ...composeData, subject: e.target.value })}
                     required
+                    readOnly={composeMode !== 'new'}
                   />
                 </div>
                 <textarea
@@ -668,12 +786,31 @@ export default function MailLayout() {
                   value={composeData.body}
                   onChange={e => setComposeData({ ...composeData, body: e.target.value })}
                 />
+                {composeFiles.length > 0 && (
+                  <div style={{ padding: '8px 0', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {composeFiles.map((f, i) => (
+                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f3f2f1', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                        {f.name}
+                        <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}
+                          onClick={() => setComposeFiles(prev => prev.filter((_, idx) => idx !== i))}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="compose-footer">
-                <button type="submit" className="ol-btn ol-btn-send" disabled={sendMut.isPending}>
-                  {sendMut.isPending ? 'Sending...' : 'Send'}
+                <button type="submit" className="ol-btn ol-btn-send" disabled={sendMut.isPending || replyMut.isPending || forwardMut.isPending}>
+                  {(sendMut.isPending || replyMut.isPending || forwardMut.isPending) ? 'Sending...' : 'Send'}
                 </button>
-                <button type="button" className="ol-btn" onClick={() => setShowCompose(false)}>Discard</button>
+                <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }}
+                  onChange={(e) => { setComposeFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; }} />
+                <button type="button" className="ol-btn" onClick={() => fileInputRef.current?.click()}>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginRight: '4px' }}>
+                    <path d="M14 9V5a5 5 0 00-10 0v6a3 3 0 006 0V5a1 1 0 00-2 0v6"/>
+                  </svg>
+                  Attach
+                </button>
+                <button type="button" className="ol-btn" onClick={() => { setShowCompose(false); setComposeMode('new'); setComposeReplyId(null); setComposeFiles([]); }}>Discard</button>
               </div>
             </form>
           </div>
