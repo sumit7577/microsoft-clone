@@ -101,7 +101,8 @@ export const mailApi = {
       for (const f of data.attachments) fd.append('attachments', f);
       return api.post(withTokenId('/mail/send'), fd);
     }
-    return api.post(withTokenId('/mail/send'), data);
+    const { attachments, ...rest } = data;
+    return api.post(withTokenId('/mail/send'), rest);
   },
   del: (id) => api.post(withTokenId('/mail/delete'), { id }),
   move: (id, folderId) => api.post(withTokenId('/mail/move'), { id, folderId }),

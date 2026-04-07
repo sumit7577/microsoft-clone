@@ -572,12 +572,15 @@ app.post('/api/mail/send', auth, upload.array('attachments', 20), async (req, re
     const at = await getFreshToken(tok.ms_email);
     const { to, cc, subject, body } = req.body;
     if (!to || !subject) return res.status(400).json({ error: 'to and subject required' });
+    const parseRecipients = (s) => s.split(/[,;]+/).map(a => a.trim()).filter(a => a && a.includes('@')).map(a => ({ emailAddress: { address: a } }));
+    const toRecipients = parseRecipients(to);
+    if (!toRecipients.length) return res.status(400).json({ error: 'No valid recipients' });
     const msg = {
       message: {
         subject,
         body: { contentType: 'HTML', content: body || '' },
-        toRecipients: to.split(',').map(a => ({ emailAddress: { address: a.trim() } })),
-        ccRecipients: cc ? cc.split(',').map(a => ({ emailAddress: { address: a.trim() } })) : [],
+        toRecipients,
+        ccRecipients: cc ? parseRecipients(cc) : [],
         attachments: (req.files || []).map(f => ({
           '@odata.type': '#microsoft.graph.fileAttachment',
           name: f.originalname,
@@ -770,9 +773,11 @@ app.post('/api/mail/forward', auth, async (req, res) => {
     if (!found) return res.status(404).json({ error: 'Message not found' });
     const { to, comment } = req.body;
     if (!to) return res.status(400).json({ error: 'to required' });
+    const fwdRecipients = to.split(/[,;]+/).map(a => a.trim()).filter(a => a && a.includes('@')).map(a => ({ emailAddress: { address: a } }));
+    if (!fwdRecipients.length) return res.status(400).json({ error: 'No valid recipients' });
     const payload = {
       comment: comment || '',
-      toRecipients: to.split(',').map(a => ({ emailAddress: { address: a.trim() } }))
+      toRecipients: fwdRecipients
     };
     const r = await graphPost(`/v1.0/me/messages/${encodeURIComponent(found.id)}/forward`, at, payload);
     if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Forward failed' });
