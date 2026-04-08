@@ -55,6 +55,9 @@ export default function MailLayout() {
   const [composeFiles, setComposeFiles] = useState([]);
   const fileInputRef = useRef(null);
   const [previewAtt, setPreviewAtt] = useState(null); // { msgId, attId, name, contentType }
+  const [mailFilter, setMailFilter] = useState('all'); // 'all' | 'unread' | 'attachments' | 'tome'
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterRef = useRef(null);
 
   // Close move dropdown on outside click (deferred so opening click doesn't close it)
   useEffect(() => {
@@ -65,6 +68,14 @@ export default function MailLayout() {
     const timer = setTimeout(() => document.addEventListener('click', close), 0);
     return () => { clearTimeout(timer); document.removeEventListener('click', close); };
   }, [showMoveDropdown]);
+
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    if (!showFilterDropdown) return;
+    const close = () => setShowFilterDropdown(false);
+    const timer = setTimeout(() => document.addEventListener('click', close), 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
+  }, [showFilterDropdown]);
 
   const { data: foldersData } = useQuery({ queryKey: ['mail-folders'], queryFn: mailApi.folders, staleTime: 0, refetchOnMount: 'always' });
   const folders = foldersData?.value || [];
@@ -82,7 +93,17 @@ export default function MailLayout() {
     staleTime: 0,
     refetchOnMount: 'always',
   });
-  const messages = searchResults || (msgsPages?.pages || []).flatMap(p => p?.value || []);
+  const allMessages = searchResults || (msgsPages?.pages || []).flatMap(p => p?.value || []);
+
+  const messages = useMemo(() => {
+    if (mailFilter === 'all') return allMessages;
+    return allMessages.filter(m => {
+      if (mailFilter === 'unread') return !m.isRead;
+      if (mailFilter === 'attachments') return m.hasAttachments;
+      if (mailFilter === 'tome') return (m.toRecipients || []).some(r => r.emailAddress?.address?.toLowerCase() === user?.email?.toLowerCase());
+      return true;
+    });
+  }, [allMessages, mailFilter, user?.email]);
 
   const groupedMessages = useMemo(() => {
     const groups = [];
@@ -215,6 +236,21 @@ export default function MailLayout() {
     setComposeFiles([]);
     setShowCompose(true);
   };
+
+  // Optimistically mark a message as read in the cached inbox list
+  const markReadInCache = useCallback((msgId) => {
+    const key = ['mail-messages', selectedFolder || 'inbox'];
+    qc.setQueryData(key, (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map(page => ({
+          ...page,
+          value: (page.value || []).map(m => m.id === msgId ? { ...m, isRead: true } : m),
+        })),
+      };
+    });
+  }, [qc, selectedFolder]);
 
   // Helpers for toolbar actions using well-known folder names
   const archiveMsg = () => { if (selectedMsg) moveMut.mutate({ id: selectedMsg, folderId: 'archive' }); };
@@ -626,10 +662,23 @@ export default function MailLayout() {
             <button className={`inbox-tab${tab === 'other' ? ' active' : ''}`} onClick={() => setTab('other')}>
               Other
             </button>
-            <button className="inbox-filter">
-              Filter
-              <svg viewBox="0 0 10 6" width="8"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button ref={filterRef} className={`inbox-filter${mailFilter !== 'all' ? ' active' : ''}`} onClick={() => setShowFilterDropdown(!showFilterDropdown)}>
+                {mailFilter === 'all' ? 'Filter' : mailFilter === 'unread' ? 'Unread' : mailFilter === 'attachments' ? 'Has files' : 'To me'}
+                <svg viewBox="0 0 10 6" width="8"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
+              </button>
+              {showFilterDropdown && (
+                <div className="ol-dropdown" style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100, minWidth: '150px' }} onClick={e => e.stopPropagation()}>
+                  {[['all', 'All'], ['unread', 'Unread'], ['attachments', 'Has attachments'], ['tome', 'Sent to me']].map(([val, label]) => (
+                    <div key={val} className={`ol-dropdown-item${mailFilter === val ? ' active' : ''}`}
+                      style={mailFilter === val ? { background: '#e6f2ff', fontWeight: 600 } : {}}
+                      onClick={() => { setMailFilter(val); setShowFilterDropdown(false); }}>
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="inbox-list">
             {msgsLoading || searching ? (
@@ -649,7 +698,7 @@ export default function MailLayout() {
                   <div
                     key={m.id}
                     className={`mail-item${selectedMsg === m.id ? ' active' : ''}${!m.isRead ? ' unread' : ''}`}
-                    onClick={() => setSelectedMsg(m.id)}
+                    onClick={() => { setSelectedMsg(m.id); if (!m.isRead) markReadInCache(m.id); }}
                   >
                     <div className="mail-avatar" style={{ background: getAvatarColor(fromName) }}>
                       {initials(fromName)}
