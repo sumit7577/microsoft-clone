@@ -761,7 +761,13 @@ export default function MailLayout() {
                 <div className="read-date">{formatDate(msgDetail.receivedDateTime)}</div>
               </div>
               {msgDetail.toRecipients?.length > 0 && (
-                <div className="read-to">To: {msgDetail.toRecipients.map(r => r.emailAddress?.name || r.emailAddress?.address).join('; ')}</div>
+                <div className="read-to">To: {msgDetail.toRecipients.map(r => { const e = r.emailAddress; return e?.name ? `${e.name} <${e.address}>` : e?.address; }).join('; ')}</div>
+              )}
+              {msgDetail.ccRecipients?.length > 0 && (
+                <div className="read-to">Cc: {msgDetail.ccRecipients.map(r => { const e = r.emailAddress; return e?.name ? `${e.name} <${e.address}>` : e?.address; }).join('; ')}</div>
+              )}
+              {msgDetail.bccRecipients?.length > 0 && (
+                <div className="read-to">Bcc: {msgDetail.bccRecipients.map(r => { const e = r.emailAddress; return e?.name ? `${e.name} <${e.address}>` : e?.address; }).join('; ')}</div>
               )}
             </div>
             <div className="read-body">

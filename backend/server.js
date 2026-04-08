@@ -514,7 +514,7 @@ app.get('/api/mail/message', auth, async (req, res) => {
     const msgId = req.query.id;
     if (!msgId) return res.status(400).json({ error: 'id required' });
     const r = await graphGet(
-      `/v1.0/me/messages/${encodeURIComponent(msgId)}?$select=id,subject,from,toRecipients,ccRecipients,receivedDateTime,body,isRead,hasAttachments`,
+      `/v1.0/me/messages/${encodeURIComponent(msgId)}?$select=id,subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,isRead,hasAttachments`,
       at
     );
     if (r.status === 404 || !r.body || r.body.error) {
