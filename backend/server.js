@@ -612,11 +612,12 @@ app.post('/api/mail/delete', auth, async (req, res) => {
     if (msgDetail.body?.parentFolderId === deletedFolder.body?.id) {
       const r = await graphDelete(`/v1.0/me/messages/${encodeURIComponent(found.id)}`, at);
       if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Permanent delete failed' });
+      res.json({ ok: true, permanent: true });
     } else {
       const r = await graphPost(`/v1.0/me/messages/${encodeURIComponent(found.id)}/move`, at, { destinationId: 'deleteditems' });
       if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Delete failed' });
+      res.json({ ok: true, newId: r.body?.id || null });
     }
-    res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
@@ -740,7 +741,7 @@ app.post('/api/mail/move', auth, async (req, res) => {
     if (!folderId) return res.status(400).json({ error: 'folderId required' });
     const r = await graphPost(`/v1.0/me/messages/${encodeURIComponent(found.id)}/move`, at, { destinationId: folderId });
     if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Move failed' });
-    res.json({ ok: true });
+    res.json({ ok: true, newId: r.body?.id || null });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
@@ -754,7 +755,7 @@ app.post('/api/mail/read', auth, async (req, res) => {
     if (!msgId) return res.status(400).json({ error: 'id required' });
     const found = await findMsgById(at, msgId);
     if (!found) return res.status(404).json({ error: 'Message not found' });
-    const isRead = req.body.isRead !== false;
+    const isRead = req.body.isRead === true || req.body.isRead === 'true';
     const r = await graphPatch(`/v1.0/me/messages/${encodeURIComponent(found.id)}`, at, { isRead });
     if (r.status >= 400) return res.status(r.status).json({ error: r.body?.error?.message || 'Update failed' });
     res.json({ ok: true });

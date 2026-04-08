@@ -115,16 +115,18 @@ export default function MailLayout() {
 
   const deleteMut = useMutation({
     mutationFn: (id) => mailApi.del(id),
-    onSuccess: (_, id) => {
-      pushUndo({ type: 'delete', msgId: id, fromFolder: folderKey });
+    onSuccess: (data, id) => {
+      if (!data?.permanent) {
+        pushUndo({ type: 'delete', msgId: data?.newId || id, fromFolder: folderKey });
+      }
       setSelectedMsg(null); qc.invalidateQueries({ queryKey: ['mail-messages'] }); qc.invalidateQueries({ queryKey: ['mail-folders'] });
     },
   });
 
   const moveMut = useMutation({
     mutationFn: ({ id, folderId }) => mailApi.move(id, folderId),
-    onSuccess: (_, { id, folderId }) => {
-      pushUndo({ type: 'move', msgId: id, fromFolder: folderKey, toFolder: folderId });
+    onSuccess: (data, { id, folderId }) => {
+      pushUndo({ type: 'move', msgId: data?.newId || id, fromFolder: folderKey, toFolder: folderId });
       setSelectedMsg(null); setShowMoveDropdown(false); qc.invalidateQueries({ queryKey: ['mail-messages'] }); qc.invalidateQueries({ queryKey: ['mail-folders'] });
     },
   });
@@ -160,11 +162,15 @@ export default function MailLayout() {
     if (!msgDetail) return;
     setComposeMode('reply');
     setComposeReplyId(selectedMsg);
+    const origBody = msgDetail.body?.content || '';
+    const origFrom = msgDetail.from?.emailAddress?.name || msgDetail.from?.emailAddress?.address || '';
+    const origDate = msgDetail.receivedDateTime ? new Date(msgDetail.receivedDateTime).toLocaleString() : '';
+    const quoted = `\n\n---------- Original Message ----------\nFrom: ${origFrom}\nDate: ${origDate}\nSubject: ${msgDetail.subject || ''}\n\n${origBody.replace(/<[^>]+>/g, '')}`;
     setComposeData({
       to: msgDetail.from?.emailAddress?.address || '',
       cc: '',
       subject: `Re: ${(msgDetail.subject || '').replace(/^Re:\s*/i, '')}`,
-      body: '',
+      body: quoted,
     });
     setComposeFiles([]);
     setShowCompose(true);
@@ -175,13 +181,17 @@ export default function MailLayout() {
     const from = msgDetail.from?.emailAddress?.address || '';
     const toAddrs = (msgDetail.toRecipients || []).map(r => r.emailAddress?.address).filter(a => a && a !== user?.email);
     const ccAddrs = (msgDetail.ccRecipients || []).map(r => r.emailAddress?.address).filter(Boolean);
+    const origBody = msgDetail.body?.content || '';
+    const origFrom = msgDetail.from?.emailAddress?.name || msgDetail.from?.emailAddress?.address || '';
+    const origDate = msgDetail.receivedDateTime ? new Date(msgDetail.receivedDateTime).toLocaleString() : '';
+    const quoted = `\n\n---------- Original Message ----------\nFrom: ${origFrom}\nDate: ${origDate}\nSubject: ${msgDetail.subject || ''}\n\n${origBody.replace(/<[^>]+>/g, '')}`;
     setComposeMode('reply');
     setComposeReplyId(selectedMsg);
     setComposeData({
       to: [from, ...toAddrs].filter(Boolean).join('; '),
       cc: ccAddrs.join('; '),
       subject: `Re: ${(msgDetail.subject || '').replace(/^Re:\s*/i, '')}`,
-      body: '',
+      body: quoted,
     });
     setComposeFiles([]);
     setShowCompose(true);
@@ -189,13 +199,18 @@ export default function MailLayout() {
 
   const openForward = () => {
     if (!msgDetail) return;
+    const origBody = msgDetail.body?.content || '';
+    const origFrom = msgDetail.from?.emailAddress?.name || msgDetail.from?.emailAddress?.address || '';
+    const origDate = msgDetail.receivedDateTime ? new Date(msgDetail.receivedDateTime).toLocaleString() : '';
+    const origTo = (msgDetail.toRecipients || []).map(r => r.emailAddress?.name || r.emailAddress?.address).join('; ');
+    const quoted = `\n\n---------- Forwarded Message ----------\nFrom: ${origFrom}\nDate: ${origDate}\nSubject: ${msgDetail.subject || ''}\nTo: ${origTo}\n\n${origBody.replace(/<[^>]+>/g, '')}`;
     setComposeMode('forward');
     setComposeReplyId(selectedMsg);
     setComposeData({
       to: '',
       cc: '',
       subject: `Fwd: ${(msgDetail.subject || '').replace(/^Fwd:\s*/i, '')}`,
-      body: '',
+      body: quoted,
     });
     setComposeFiles([]);
     setShowCompose(true);
@@ -219,12 +234,10 @@ export default function MailLayout() {
     setUndoToast(null);
     try {
       if (last.type === 'delete') {
-        // "Delete" moved to deleteditems → move back to original folder
         await mailApi.move(last.msgId, last.fromFolder === 'inbox' ? 'inbox' : last.fromFolder);
       } else if (last.type === 'move') {
         await mailApi.move(last.msgId, last.fromFolder === 'inbox' ? 'inbox' : last.fromFolder);
       } else if (last.type === 'sweep') {
-        // Sweep moves are batch — move each back
         for (const id of (last.msgIds || [])) {
           await mailApi.move(id, last.fromFolder === 'inbox' ? 'inbox' : last.fromFolder);
         }
